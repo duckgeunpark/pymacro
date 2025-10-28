@@ -1,0 +1,18 @@
+# DMAX 매크로 빌더 - 필수 라이브러리
+
+# 자동화
+pyautogui==0.9.54
+pynput==1.7.6
+pyperclip==1.8.2
+
+# 데이터 처리
+pandas==2.2.0
+openpyxl==3.1.2
+xlrd==2.0.1
+
+# 이미지 처리
+Pillow==10.2.0
+opencv-python==4.8.1.78
+
+# 빌드 도구
+pyinstaller==6.3.0
