@@ -13,13 +13,21 @@ def build_exe():
     
     # PyInstaller 명령
     cmd = [
-        'pyinstaller',
-        '--onefile',                    # 단일 파일로
-        '--noconsole',                  # 콘솔 창 숨김
-        '--name=MacroBuilder',          # 실행 파일 이름
-        '--icon=resources/icon.ico',    # 아이콘 (선택사항)
-        '--add-data=resources;resources',  # 리소스 폴더 포함
-        'main.py'
+            'pyinstaller',
+            '--onefile',
+            '--windowed',
+            '--name=MacroBuilder',
+            '--icon=resources/icon.ico',              # EXE 파일 아이콘
+            '--add-data=resources;resources',         # resources 폴더 포함 ⭐
+            '--add-data=ui;ui',
+            '--add-data=core;core',
+            '--hidden-import=PIL._tkinter_finder',
+            '--hidden-import=openpyxl',
+            '--hidden-import=pandas',
+            '--hidden-import=pyautogui',
+            '--hidden-import=pynput',
+            '--hidden-import=pyperclip',
+            'main.py'
     ]
     
     # 실행

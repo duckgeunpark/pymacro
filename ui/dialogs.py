@@ -4,7 +4,15 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog 
 from datetime import datetime
+import main  # ICON_PATH 가져오기
 
+def set_dialog_icon(dialog):
+    """다이얼로그에 아이콘 설정"""
+    try:
+        if hasattr(main, 'ICON_PATH') and main.ICON_PATH:
+            dialog.iconbitmap(main.ICON_PATH)
+    except Exception as e:
+        pass  # 조용히 실패
 
 class NewProjectDialog(tk.Toplevel):
     """새 프로젝트 생성 다이얼로그"""
@@ -150,6 +158,9 @@ class NameInputDialog(tk.Toplevel):
         # 항상 위에 표시
         self.attributes('-topmost', True)
         
+        set_dialog_icon(self)
+
+
         self.setup_ui(message, initial_value)
         self.center_window()
         
@@ -262,9 +273,17 @@ class ActionSelectDialog(tk.Toplevel):
         
         self.transient(parent)
         self.grab_set()
+        self.attributes('-topmost', True)
+        
+        # 아이콘 설정 (추가)
+        set_dialog_icon(self)
         
         self.setup_ui()
         self.center_window()
+        
+        # 포커스
+        self.lift()
+        self.focus_force()
     
     def center_window(self):
         """창 중앙 배치"""

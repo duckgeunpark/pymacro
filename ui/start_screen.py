@@ -25,7 +25,7 @@ class StartScreen(tk.Frame):
         
         title_label = tk.Label(
             title_frame, 
-            text=" 매크로 빌더", 
+            text="dMax MacroBuilder", 
             font=("맑은 고딕", 24, "bold"),
             bg='#2c3e50',
             fg='white'

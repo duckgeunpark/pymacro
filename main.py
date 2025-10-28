@@ -10,14 +10,23 @@ import os
 # 프로젝트 내부 모듈
 from ui.start_screen import StartScreen
 
+ICON_PATH = None
+
 
 class MacroBuilderApp:
     def __init__(self):
+        global ICON_PATH
+
         self.root = tk.Tk()
-        self.root.title("DMAX 매크로 빌더")
+        self.root.title("dMax MacroBuilder")
         self.root.geometry("900x650")
         self.root.minsize(800, 600)
         
+        ICON_PATH = self.get_icon_path()
+
+        # 윈도우 아이콘 설정 (추가)
+        self.set_window_icon()
+
         # 프로그램 종료 시 확인
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
@@ -26,6 +35,34 @@ class MacroBuilderApp:
         
         # 시작 화면 표시
         self.show_start_screen()
+
+    def get_icon_path(self):
+            """아이콘 파일 경로 반환"""
+            try:
+                if getattr(sys, 'frozen', False):
+                    application_path = os.path.dirname(sys.executable)
+                else:
+                    application_path = os.path.dirname(os.path.abspath(__file__))
+                
+                icon_path = os.path.join(application_path, 'resources', 'icon.ico')
+                
+                if os.path.exists(icon_path):
+                    return icon_path
+                else:
+                    return None
+            except:
+                return None
+
+    def set_window_icon(self):
+        """윈도우 아이콘 설정"""
+        try:
+            if ICON_PATH and os.path.exists(ICON_PATH):
+                self.root.iconbitmap(ICON_PATH)
+                print(f"✅ 아이콘 설정: {ICON_PATH}")
+            else:
+                print("⚠️ 아이콘 파일 없음")
+        except Exception as e:
+            print(f"⚠️ 아이콘 설정 실패: {e}")
         
     def show_start_screen(self):
         """시작 화면 표시"""

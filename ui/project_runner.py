@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
 from pynput import keyboard  # ← 추가
+import main
 
 from core.project_manager import ProjectManager
 from core.coordinate_manager import CoordinateManager
@@ -457,6 +458,12 @@ class ProjectRunner(tk.Frame):
         dialog.transient(self.parent)
         dialog.grab_set()
         
+        try:
+            if hasattr(main, 'ICON_PATH') and main.ICON_PATH:
+                dialog.iconbitmap(main.ICON_PATH)
+        except:
+            pass
+
         tk.Label(
             dialog,
             text="⚙️ 실행 설정",

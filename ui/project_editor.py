@@ -4,13 +4,22 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
 from datetime import datetime
+import main
 
 from core.project_manager import ProjectManager
 from core.coordinate_manager import CoordinateManager
 from core.excel_manager import ExcelManager
 from core.image_manager import ImageManager
 from core.flow_manager import FlowManager
-from ui.dialogs import ActionSelectDialog, NameInputDialog  # NameInputDialog 추가
+from ui.dialogs import ActionSelectDialog, NameInputDialog
+
+def set_dialog_icon(dialog):
+    """다이얼로그에 아이콘 설정"""
+    try:
+        if hasattr(main, 'ICON_PATH') and main.ICON_PATH:
+            dialog.iconbitmap(main.ICON_PATH)
+    except Exception as e:
+        print(f"⚠️ 다이얼로그 아이콘 설정 실패: {e}")
 
 def center_dialog(dialog, parent):
     """다이얼로그를 부모 창 중앙에 배치"""
@@ -31,6 +40,8 @@ def center_dialog(dialog, parent):
     y = parent_y + (parent_height - dialog_height) // 2
     
     dialog.geometry(f'+{x}+{y}')
+
+    set_dialog_icon(dialog)
 
 
 class ProjectEditor(tk.Frame):
@@ -556,10 +567,10 @@ class ProjectEditor(tk.Frame):
             command=start_capture
         ).pack(pady=15)
 
-        center_dialog(dialog, self.parent)
+        center_dialog(dialog, self.parent)  # 이미 아이콘 설정 포함
         dialog.lift()
         dialog.focus_force()
-    
+        
     def capture_coordinate(self):
         """좌표 캡처"""
         # 카운트다운 창
