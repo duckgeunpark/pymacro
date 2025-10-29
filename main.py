@@ -19,8 +19,8 @@ class MacroBuilderApp:
 
         self.root = tk.Tk()
         self.root.title("dMax MacroBuilder")
-        self.root.geometry("900x650")
-        self.root.minsize(800, 600)
+        self.root.geometry("750x650")
+        self.root.minsize(750, 650)
         
         ICON_PATH = self.get_icon_path()
 

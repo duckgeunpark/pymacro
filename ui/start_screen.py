@@ -7,6 +7,8 @@ import os
 import json
 from datetime import datetime
 
+
+
 class StartScreen(tk.Frame):
     def __init__(self, parent, app):
         super().__init__(parent)
@@ -32,30 +34,9 @@ class StartScreen(tk.Frame):
         )
         title_label.pack(pady=20)
         
-        # 메인 컨텐츠
-        content_frame = tk.Frame(self, bg='white')
-        content_frame.pack(fill='both', expand=True, padx=40, pady=30)
-        
-        # 최근 프로젝트 섹션
-        recent_label = tk.Label(
-            content_frame,
-            text="최근 프로젝트",
-            font=("맑은 고딕", 14, "bold"),
-            bg='white'
-        )
-        recent_label.pack(anchor='w', pady=(0, 10))
-        
-        # 최근 프로젝트 리스트
-        self.recent_frame = tk.Frame(content_frame, bg='white')
-        self.recent_frame.pack(fill='x', pady=(0, 30))
-        
-        # 구분선
-        separator = ttk.Separator(content_frame, orient='horizontal')
-        separator.pack(fill='x', pady=20)
-        
-        # 버튼 섹션
-        button_frame = tk.Frame(content_frame, bg='white')
-        button_frame.pack()
+        # 버튼 섹션 (먼저 pack - 맨 아래 고정) ⭐
+        button_frame = tk.Frame(self, bg='white')
+        button_frame.pack(side='bottom', fill='x', padx=40, pady=(0, 30))
         
         # 새 프로젝트 버튼
         new_btn = tk.Button(
@@ -69,7 +50,7 @@ class StartScreen(tk.Frame):
             cursor='hand2',
             command=self.create_new_project
         )
-        new_btn.grid(row=0, column=0, padx=10)
+        new_btn.pack(side='left', expand=True, fill='both', padx=(0, 10))
         
         # 프로젝트 열기 버튼
         open_btn = tk.Button(
@@ -83,7 +64,67 @@ class StartScreen(tk.Frame):
             cursor='hand2',
             command=self.load_project
         )
-        open_btn.grid(row=0, column=1, padx=10)
+        open_btn.pack(side='left', expand=True, fill='both', padx=(10, 0))
+        
+        # 메인 컨텐츠 (나머지 공간 차지) ⭐
+        content_frame = tk.Frame(self, bg='white')
+        content_frame.pack(fill='both', expand=True, padx=40, pady=(30, 20))
+        
+        # 최근 프로젝트 섹션
+        recent_label = tk.Label(
+            content_frame,
+            text="최근 프로젝트",
+            font=("맑은 고딕", 14, "bold"),
+            bg='white'
+        )
+        recent_label.pack(anchor='w', pady=(0, 10))
+        
+        # 최근 프로젝트 리스트 (스크롤 추가) ⭐
+        self.setup_scrollable_projects(content_frame)
+    
+    def setup_scrollable_projects(self, parent):
+        """스크롤 가능한 프로젝트 리스트 생성"""
+        # 컨테이너 프레임
+        container = tk.Frame(parent, bg='white')
+        container.pack(fill='both', expand=True)
+        
+        # 캔버스
+        canvas = tk.Canvas(container, bg='white', highlightthickness=0)
+        scrollbar = tk.Scrollbar(container, orient='vertical', command=canvas.yview)
+        
+        # 스크롤 가능한 프레임
+        self.recent_frame = tk.Frame(canvas, bg='white')
+        
+        canvas_id = canvas.create_window((0, 0), window=self.recent_frame, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # ⭐ 핵심: 프레임 너비를 캔버스 너비에 동기화
+        def on_frame_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        
+        def on_canvas_configure(event):
+            # 캔버스 너비에 맞춰 프레임 너비 설정
+            canvas_width = event.width
+            self.recent_frame.config(width=canvas_width)
+        
+        self.recent_frame.bind("<Configure>", on_frame_configure)
+        canvas.bind("<Configure>", on_canvas_configure)
+        
+        # 마우스 휠 스크롤 지원
+        def _on_mousewheel(event):
+            try:
+                # 캔버스가 아직 존재하는지 확인
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except tk.TclError:
+                # 캔버스가 삭제되었을 때 에러 무시
+                pass
+        
+        canvas.bind("<MouseWheel>", _on_mousewheel)
+        
+        # 배치
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
     
     def load_recent_projects(self):
         """최근 프로젝트 목록 로드"""
@@ -100,7 +141,7 @@ class StartScreen(tk.Frame):
                 fg='gray',
                 bg='white'
             )
-            no_project_label.pack(pady=10)
+            no_project_label.pack(fill='x',pady=10)
             return
         
         json_files = [f for f in os.listdir('projects') if f.endswith('.json')]
@@ -113,17 +154,17 @@ class StartScreen(tk.Frame):
                 fg='gray',
                 bg='white'
             )
-            no_project_label.pack(pady=10)
+            no_project_label.pack(fill='x',pady=10)
             return
         
-        # 수정 시간 기준 정렬 (최근 5개)
+        # 수정 시간 기준 정렬
         json_files.sort(
             key=lambda x: os.path.getmtime(os.path.join('projects', x)),
             reverse=True
         )
-        recent_files = json_files[:5]
         
-        for idx, filename in enumerate(recent_files):
+        # 전체 프로젝트 표시 (5개 제한 제거) ⭐
+        for idx, filename in enumerate(json_files):
             self.create_project_card(filename, idx)
     
     def create_project_card(self, filename, index):
@@ -143,14 +184,14 @@ class StartScreen(tk.Frame):
             print(f"프로젝트 로드 오류: {e}")
             return
         
-        # 카드 프레임
+        # 카드 프레임 (⭐ fill='both', expand=True 추가)
         card = tk.Frame(
             self.recent_frame,
             bg='#ecf0f1',
             relief='raised',
-            borderwidth=2
+            borderwidth=1
         )
-        card.pack(fill='x', pady=5)
+        card.pack(fill='both', expand=True, pady=5, padx=0)  # ⭐ padx=0으로 변경
         
         # 좌측 정보 영역
         info_frame = tk.Frame(card, bg='#ecf0f1')
@@ -220,14 +261,14 @@ class StartScreen(tk.Frame):
         )
         edit_btn.pack(side='left', padx=2)
         
-        # 제거 버튼 (새로 추가)
+        # 제거 버튼
         remove_btn = tk.Button(
             button_frame,
-            text="🗑️",
+            text="제거",
             font=("맑은 고딕", 9),
             bg='#e74c3c',
             fg='white',
-            padx=8,
+            padx=15,
             pady=5,
             cursor='hand2',
             command=lambda: self.remove_project(filepath, project_name)
@@ -236,7 +277,6 @@ class StartScreen(tk.Frame):
     
     def remove_project(self, filepath, project_name):
         """프로젝트 제거"""
-        # 확인 다이얼로그
         result = messagebox.askyesnocancel(
             "프로젝트 제거",
             f"'{project_name}' 프로젝트를 어떻게 처리하시겠습니까?\n\n"
@@ -245,35 +285,16 @@ class StartScreen(tk.Frame):
             f"취소: 작업 취소"
         )
         
-        if result is None:  # 취소
+        if result is None:
             return
-        elif result:  # 예 - 파일 삭제
+        elif result:
             try:
-                # JSON 파일 삭제
                 os.remove(filepath)
-                
-                # 관련 이미지 파일들도 삭제
-                try:
-                    with open(filepath, 'r', encoding='utf-8') as f:
-                        project_data = json.load(f)
-                    
-                    # 이미지 파일 삭제
-                    images = project_data.get('images', [])
-                    for img in images:
-                        img_path = img.get('path', '')
-                        if img_path and os.path.exists(img_path):
-                            os.remove(img_path)
-                except:
-                    pass
-                
                 messagebox.showinfo("완료", f"'{project_name}' 프로젝트가 삭제되었습니다.")
-                
             except Exception as e:
                 messagebox.showerror("오류", f"프로젝트 삭제 중 오류가 발생했습니다:\n{str(e)}")
                 return
-        else:  # 아니오 - 목록에서만 제거
-            # 파일을 다른 폴더로 이동하거나 숨김 속성 설정
-            # 여기서는 파일명에 .hidden 추가
+        else:
             try:
                 hidden_path = filepath + '.hidden'
                 os.rename(filepath, hidden_path)
@@ -282,7 +303,6 @@ class StartScreen(tk.Frame):
                 messagebox.showerror("오류", f"프로젝트 제거 중 오류가 발생했습니다:\n{str(e)}")
                 return
         
-        # 목록 새로고침
         self.load_recent_projects()
     
     def open_project(self, filepath):
@@ -295,7 +315,6 @@ class StartScreen(tk.Frame):
             messagebox.showerror("오류", "프로젝트를 불러올 수 없습니다.")
             return
         
-        # 화면 전환
         for widget in self.parent.winfo_children():
             widget.destroy()
         
@@ -312,7 +331,6 @@ class StartScreen(tk.Frame):
             messagebox.showerror("오류", "프로젝트를 불러올 수 없습니다.")
             return
         
-        # 화면 전환
         for widget in self.parent.winfo_children():
             widget.destroy()
         
@@ -331,7 +349,6 @@ class StartScreen(tk.Frame):
             name = dialog.result['name']
             description = dialog.result['description']
             
-            # 프로젝트 파일 생성
             filename = f"{name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             filepath = os.path.join('projects', filename)
             

@@ -1,19 +1,27 @@
 {
-    "name": "sdsadsa",
+    "name": "테스트",
     "description": "",
     "coordinates": [
         {
             "id": 1,
-            "name": "asd",
-            "x": 697,
-            "y": 606,
+            "name": "1313",
+            "x": 1618,
+            "y": 379,
             "description": "",
-            "thumbnail": "iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAIAAACRXR/mAAAAZ0lEQVR4nM3OQQEAIACEMKR/57OAf1mCnW30SJIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIkSZIk+TvwdgEBKANhs+2fZgAAAABJRU5ErkJggg=="
+            "thumbnail": "iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAIAAACRXR/mAAAAZ0lEQVR4nM3OMQEAIADDsFL/hvdhgJ9GQc42eiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkvwdeLvuQwNP41qTfAAAAABJRU5ErkJggg=="
         }
     ],
     "excel_sources": [],
     "images": [],
-    "flow_sequence": [],
+    "flow_sequence": [
+        {
+            "id": 1,
+            "type": "key_press",
+            "params": {
+                "key": "f2"
+            }
+        }
+    ],
     "settings": {
         "hotkeys": {
             "start": "F9",
@@ -32,6 +40,6 @@
             "speed": "normal"
         }
     },
-    "created_at": "2025-10-28T17:30:08.354535",
-    "modified_at": "2025-10-28T17:30:55.274417"
+    "created_at": "2025-10-29T12:35:46.407949",
+    "modified_at": "2025-10-29T12:37:37.492735"
 }

@@ -57,7 +57,7 @@ class ProjectRunner(tk.Frame):
         self.setup_hotkeys()
         
         self.setup_ui()
-    
+        
     def setup_hotkeys(self):
         """단축키 설정"""
         settings = self.project_data.get('settings', {})
@@ -71,29 +71,44 @@ class ProjectRunner(tk.Frame):
         # 단축키를 pynput 형식으로 변환
         self.hotkey_map = {}
         for action, key in hotkeys.items():
+            # 빈 문자열이나 None 값 체크
+            if not key:
+                continue
+            
+            key = key.strip().lower()  # 공백 제거 후 소문자 변환
+            
             # F8, F9 등을 keyboard.Key.f8 형식으로 변환
-            if key.lower().startswith('f') and key[1:].isdigit():
-                # F키
-                key_obj = getattr(keyboard.Key, key.lower(), None)
+            if key.startswith('f') and len(key) > 1 and key[1:].isdigit():
+                # F키 (f1 ~ f24)
+                key_obj = getattr(keyboard.Key, key, None)
+            elif key in ['enter', 'tab', 'esc', 'space', 'backspace', 'delete']:
+                # 특수 키
+                key_obj = getattr(keyboard.Key, key, None)
             else:
                 # 일반 키
-                key_obj = key.lower()
+                key_obj = key
             
             if key_obj:
                 self.hotkey_map[action] = key_obj
         
         # 리스너 시작
         self.start_hotkey_listener()
-    
+        
     def start_hotkey_listener(self):
         """단축키 리스너 시작"""
         def on_press(key):
             try:
-                # F키 처리
+                # 현재 누른 키 이름 가져오기
                 if hasattr(key, 'name'):
+                    # F키 등 special keys
                     key_name = key
                 else:
-                    key_name = key.char.lower() if hasattr(key, 'char') else None
+                    # 일반 문자 키
+                    key_name = key.char.lower() if hasattr(key, 'char') and key.char else None
+                
+                # None 체크
+                if key_name is None:
+                    return
                 
                 # 단축키 매칭
                 if key_name == self.hotkey_map.get('start'):
@@ -103,7 +118,10 @@ class ProjectRunner(tk.Frame):
                 elif key_name == self.hotkey_map.get('stop'):
                     self.parent.after(0, self.stop_macro)
                 elif key_name == self.hotkey_map.get('focus'):
-                    self.parent.after(0, self.bring_to_front)  # 맨 앞으로
+                    self.parent.after(0, self.bring_to_front)   
+            except AttributeError as e:
+                # None에서 메서드 호출하려고 할 때 발생
+                pass
             except Exception as e:
                 print(f"단축키 처리 오류: {e}")
         
@@ -111,6 +129,7 @@ class ProjectRunner(tk.Frame):
         self.hotkey_listener = keyboard.Listener(on_press=on_press)
         self.hotkey_listener.daemon = True
         self.hotkey_listener.start()
+
     
     def stop_hotkey_listener(self):
         """단축키 리스너 중지"""
@@ -137,7 +156,7 @@ class ProjectRunner(tk.Frame):
         
         tk.Button(
             btn_frame,
-            text="✏️ 편집",
+            text="편집",
             font=("맑은 고딕", 10),
             bg='#95a5a6',
             fg='white',
@@ -148,7 +167,7 @@ class ProjectRunner(tk.Frame):
         
         tk.Button(
             btn_frame,
-            text="⚙️ 설정",
+            text="설정",
             font=("맑은 고딕", 10),
             bg='#34495e',
             fg='white',
@@ -159,7 +178,7 @@ class ProjectRunner(tk.Frame):
         
         tk.Button(
             btn_frame,
-            text="🏠 홈",
+            text="홈",
             font=("맑은 고딕", 10),
             bg='#7f8c8d',
             fg='white',
@@ -449,14 +468,15 @@ class ProjectRunner(tk.Frame):
         
         editor = ProjectEditor(self.parent, self.app, self.project_data, self.filepath)
         editor.pack(fill='both', expand=True)
-    
+            
     def show_settings(self):
         """설정 창"""
         dialog = tk.Toplevel(self.parent)
         dialog.title("실행 설정")
-        dialog.geometry("450x700")  # 높이 증가
+        dialog.geometry("450x720")
         dialog.transient(self.parent)
         dialog.grab_set()
+        dialog.attributes('-topmost', True)
         
         try:
             if hasattr(main, 'ICON_PATH') and main.ICON_PATH:
@@ -467,60 +487,275 @@ class ProjectRunner(tk.Frame):
         tk.Label(
             dialog,
             text="⚙️ 실행 설정",
-            font=("맑은 고딕", 14, "bold")
-        ).pack(pady=15)
+            font=("맑은 고딕", 14, "bold"),
+            bg='white'
+        ).pack(pady=15, fill='x')
         
         # 단축키 설정
         hotkey_frame = tk.LabelFrame(
             dialog,
             text="⌨️ 단축키 설정",
             font=("맑은 고딕", 11, "bold"),
+            bg='white',
+            fg='#2c3e50',
             padx=20,
-            pady=15
+            pady=15,
+            relief='solid',
+            borderwidth=1
         )
         hotkey_frame.pack(fill='x', padx=20, pady=10)
-        
+
         hotkeys = self.project_data.get('settings', {}).get('hotkeys', {
-            'start': 'F9',
-            'pause': 'F10',
-            'stop': 'F11',
-            'focus': 'F12'
+            'start': 'f8',
+            'pause': 'f9',
+            'stop': 'f10',
+            'focus': 'f12'
         })
-        
+
         hotkey_entries = {}
         
-        # 단축키 목록에 '맨 앞으로' 추가
+        # 키 입력 다이얼로그 함수
+        def show_key_input_dialog(action_name):
+            """키 입력 감지 다이얼로그 표시"""
+            key_dialog = tk.Toplevel(dialog)
+            key_dialog.title("키 입력")
+            key_dialog.geometry("350x280")
+            key_dialog.resizable(False, False)
+            key_dialog.transient(dialog)
+            key_dialog.grab_set()
+            key_dialog.attributes('-topmost', True)
+            
+            try:
+                if hasattr(main, 'ICON_PATH') and main.ICON_PATH:
+                    key_dialog.iconbitmap(main.ICON_PATH)
+            except:
+                pass
+            
+            result = [None]
+            
+            main_frame = tk.Frame(key_dialog, padx=20, pady=20, bg='white')
+            main_frame.pack(fill='both', expand=True)
+            
+            tk.Label(
+                main_frame,
+                text="입력할 키를 누르세요",
+                font=("맑은 고딕", 12, "bold"),
+                bg='white'
+            ).pack(pady=(0, 20))
+            
+            tk.Label(
+                main_frame,
+                text="입력된 키:",
+                font=("맑은 고딕", 11),
+                bg='white'
+            ).pack(anchor='w', pady=(0, 5))
+            
+            key_display = tk.Label(
+                main_frame,
+                text="(키를 누르세요...)",
+                font=("맑은 고딕", 14, "bold"),
+                bg='#ecf0f1',
+                fg='#3498db',
+                padx=20,
+                pady=15,
+                relief='sunken',
+                borderwidth=2
+            )
+            key_display.pack(fill='x', pady=(0, 20))
+            
+            tk.Label(
+                main_frame,
+                text="예: f1, f8, f11, enter, esc 등",
+                font=("맑은 고딕", 9),
+                fg='#7f8c8d',
+                bg='white'
+            ).pack(anchor='w', pady=(0, 15))
+            
+            captured_key = [None]
+            
+            def on_key_press(event):
+                """키 입력 감지"""
+                key_mapping = {
+                    'Return': 'enter',
+                    'Tab': 'tab',
+                    'Escape': 'esc',
+                    'space': 'space',
+                    'BackSpace': 'backspace',
+                    'Delete': 'delete',
+                    'Up': 'up',
+                    'Down': 'down',
+                    'Left': 'left',
+                    'Right': 'right',
+                    'Home': 'home',
+                    'End': 'end',
+                    'Prior': 'pageup',
+                    'Next': 'pagedown',
+                    'Insert': 'insert',
+                    'Pause': 'pause',
+                    'Print': 'print',
+                }
+                
+                key_name = event.keysym.lower()
+                
+                if event.keysym in key_mapping:
+                    key_name = key_mapping[event.keysym]
+                
+                if event.keysym.startswith('F') and event.keysym[1:].isdigit():
+                    key_name = event.keysym.lower()
+                
+                if key_name in ['shift_l', 'shift_r', 'control_l', 'control_r', 'alt_l', 'alt_r', 'meta_l', 'meta_r']:
+                    return
+                
+                modifiers = []
+                if event.state & 0x0004:
+                    modifiers.append('ctrl')
+                if event.state & 0x0001:
+                    modifiers.append('shift')
+                
+                if modifiers:
+                    captured_key[0] = '+'.join(modifiers + [key_name])
+                else:
+                    captured_key[0] = key_name
+                
+                key_display.config(text=captured_key[0], fg='#27ae60')
+                confirm_btn.config(state='normal')
+            
+            def on_ok():
+                if captured_key[0]:
+                    result[0] = captured_key[0]
+                    key_dialog.destroy()
+            
+            def on_cancel():
+                key_dialog.destroy()
+            
+            btn_frame = tk.Frame(main_frame, bg='white')
+            btn_frame.pack(fill='x')
+            
+            confirm_btn = tk.Button(
+                btn_frame,
+                text="확인",
+                font=("맑은 고딕", 10),
+                bg='#27ae60',
+                fg='white',
+                padx=20,
+                pady=8,
+                command=on_ok,
+                state='disabled'
+            )
+            confirm_btn.pack(side='left', expand=True, padx=(0, 5))
+            
+            tk.Button(
+                btn_frame,
+                text="취소",
+                font=("맑은 고딕", 10),
+                bg='#95a5a6',
+                fg='white',
+                padx=20,
+                pady=8,
+                command=on_cancel
+            ).pack(side='left', expand=True, padx=(5, 0))
+            
+            key_dialog.bind('<KeyPress>', on_key_press)
+            key_dialog.focus_force()
+            
+            # 중앙 배치
+            key_dialog.update_idletasks()
+            width = key_dialog.winfo_width()
+            height = key_dialog.winfo_height()
+            parent_x = dialog.winfo_x()
+            parent_y = dialog.winfo_y()
+            parent_width = dialog.winfo_width()
+            parent_height = dialog.winfo_height()
+            x = parent_x + (parent_width - width) // 2
+            y = parent_y + (parent_height - height) // 2
+            key_dialog.geometry(f'{width}x{height}+{x}+{y}')
+            
+            key_dialog.lift()
+            key_dialog.focus_force()
+            
+            dialog.wait_window(key_dialog)
+            return result[0]
+        
+    
+        # 단축키 입력 필드 생성 (Grid 레이아웃)
         for idx, (action, label) in enumerate([
             ('start', '시작'),
             ('pause', '일시정지'),
             ('stop', '중지'),
-            ('focus', '맨 앞으로')  # 추가
+            ('focus', '맨 앞으로')
         ]):
+            # 라벨
             tk.Label(
                 hotkey_frame,
                 text=f"{label}:",
-                font=("맑은 고딕", 10)
-            ).grid(row=idx, column=0, sticky='w', pady=5)
+                font=("맑은 고딕", 10),
+                bg='white',
+                fg='#2c3e50'
+            ).grid(row=idx, column=0, sticky='w', padx=(0, 10), pady=8)
             
-            entry = tk.Entry(hotkey_frame, font=("맑은 고딕", 10), width=15)
+            # Entry (클릭 이벤트 추가)
+            entry = tk.Entry(
+                hotkey_frame,
+                font=("맑은 고딕", 10),
+                width=15,
+                relief='solid',
+                borderwidth=1
+            )
             entry.insert(0, hotkeys.get(action, ''))
-            entry.grid(row=idx, column=1, padx=10, pady=5)
+            entry.grid(row=idx, column=1, padx=5, pady=8, sticky='ew', columnspan=2)
             hotkey_entries[action] = entry
+            
+            # Entry 클릭 이벤트 (감지 다이얼로그 표시)
+            def make_on_click(act):
+                def on_click(event):
+                    # 이미 다이얼로그가 열려있으면 무시
+                    if hasattr(on_click, 'dialog_open') and on_click.dialog_open:
+                        return
+                    
+                    entry_widget = event.widget
+                    entry_widget.delete(0, tk.END)
+                    entry_widget.config(state='disabled', fg='gray')
+                    
+                    on_click.dialog_open = True  # 플래그 설정
+                    detected_key = show_key_input_dialog(act)
+                    on_click.dialog_open = False  # 플래그 해제
+                    
+                    entry_widget.config(state='normal', fg='black')
+                    if detected_key:
+                        entry_widget.delete(0, tk.END)
+                        entry_widget.insert(0, detected_key)
+                
+                on_click.dialog_open = False  # 초기값
+                return on_click
+            
+            entry.bind('<Button-1>', make_on_click(action))
+
+        # Grid 열 가중치 설정
+        hotkey_frame.grid_columnconfigure(1, minsize=200)
+        
+        # Grid 열 가중치 설정
+        hotkey_frame.grid_columnconfigure(1, minsize=150)
+        hotkey_frame.grid_columnconfigure(2, minsize=80)
         
         tk.Label(
             hotkey_frame,
-            text="※ 예: F9, F10, F11, F12, ctrl+shift+s 등",
+            text="※ 예: f8, f9, f11, enter, ctrl+s 등",
             font=("맑은 고딕", 8),
-            fg='gray'
-        ).grid(row=4, column=0, columnspan=2, pady=(10, 0))
+            fg='gray',
+            bg='white'
+        ).grid(row=4, column=0, columnspan=3, pady=(10, 0), sticky='w')
         
         # 실행 모드
         mode_frame = tk.LabelFrame(
             dialog,
             text="🎯 실행 모드",
             font=("맑은 고딕", 11, "bold"),
+            bg='white',
+            fg='#2c3e50',
             padx=20,
-            pady=15
+            pady=15,
+            relief='solid',
+            borderwidth=1
         )
         mode_frame.pack(fill='x', padx=20, pady=10)
         
@@ -540,17 +775,22 @@ class ProjectRunner(tk.Frame):
                 text=text,
                 variable=mode_var,
                 value=value,
-                font=("맑은 고딕", 9)
-            ).pack(anchor='w', padx=10, pady=2)
+                font=("맑은 고딕", 9),
+                bg='white',
+                fg='#2c3e50',
+                selectcolor='white'
+            ).pack(anchor='w', padx=10, pady=3)
         
         # 반복 횟수
-        repeat_frame = tk.Frame(mode_frame)
-        repeat_frame.pack(fill='x', padx=10, pady=(10, 0))
+        repeat_frame = tk.Frame(mode_frame, bg='white')
+        repeat_frame.pack(fill='x', padx=10, pady=(15, 0))
         
         tk.Label(
             repeat_frame,
             text="플로우 반복 횟수:",
-            font=("맑은 고딕", 9)
+            font=("맑은 고딕", 9),
+            bg='white',
+            fg='#2c3e50'
         ).pack(side='left')
         
         repeat_entry = tk.Entry(repeat_frame, font=("맑은 고딕", 9), width=10)
@@ -559,7 +799,7 @@ class ProjectRunner(tk.Frame):
         ))
         repeat_entry.pack(side='left', padx=10)
         
-        # 엑셀 무한반복 체크박스 추가
+        # 엑셀 무한반복 체크박스
         excel_infinite_var = tk.BooleanVar(
             value=self.project_data.get('settings', {}).get('execution', {}).get('excel_infinite_loop', False)
         )
@@ -569,7 +809,9 @@ class ProjectRunner(tk.Frame):
             text="🔄 엑셀 행 무한반복 (마지막 행 후 처음부터 다시)",
             variable=excel_infinite_var,
             font=("맑은 고딕", 9, "bold"),
-            fg='#e74c3c'
+            fg='#e74c3c',
+            bg='white',
+            selectcolor='white'
         )
         excel_infinite_check.pack(anchor='w', padx=10, pady=(15, 5))
         
@@ -577,9 +819,10 @@ class ProjectRunner(tk.Frame):
             mode_frame,
             text="※ 엑셀 모드에서만 적용됩니다",
             font=("맑은 고딕", 8),
-            fg='gray'
-        ).pack(anchor='w', padx=30)
-        
+            fg='gray',
+            bg='white'
+        ).pack(anchor='w', padx=30, pady=(0, 10))
+
         def save_settings():
             # 단축키 저장
             if 'settings' not in self.project_data:
@@ -623,6 +866,7 @@ class ProjectRunner(tk.Frame):
             pady=10,
             font=("맑은 고딕", 11, "bold")
         ).pack(pady=20)
+
 
     
     def update_hotkey_display(self):

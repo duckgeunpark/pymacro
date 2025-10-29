@@ -713,8 +713,8 @@ class ProjectEditor(tk.Frame):
         if messagebox.askyesno("확인", "이 좌표를 삭제하시겠습니까?"):
             self.coord_mgr.remove_coordinate(coord_id)
             self.refresh_coordinate_list()
-    
-    # 엑셀 추가
+ 
+        # 엑셀 추가
     def add_excel_dialog(self):
         """엑셀 추가 다이얼로그"""
         filepath = filedialog.askopenfilename(
