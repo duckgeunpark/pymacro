@@ -80,6 +80,60 @@ class FlowManager:
     def to_list(self):
         """리스트로 변환"""
         return self.flow_sequence
+
+    def add_ocr_delay_action(self, image_id, multiplier=1):
+        """OCR로 숫자 인식 후 그 숫자만큼 대기하는 액션 추가"""
+        from core.ocr_utils import OCRUtils
+        
+        action = {
+            'id': self._generate_id(),
+            'type': 'ocr_delay',
+            'params': {
+                'image_id': image_id,
+                'multiplier': multiplier,  # 배수 (예: 1 = 1초, 60 = 1분)
+                'mode': 'number',  # 'number', 'time_mm_ss', 'percentage'
+            }
+        }
+        
+        self.flow_sequence.append(action)
+        return action
+
+    def add_ocr_region_delay_action(self, region_data):
+        """OCR 영역 감지 후 시간 인식 액션 추가"""
+        action = {
+            'id': self._generate_id(),
+            'type': 'ocr_region_delay',
+            'params': {
+                'region': region_data,  # (x, y, w, h)
+                'name': region_data.get('name', 'OCR 영역'),
+                'mode': 'remaining',  # 'remaining' = 남은시간, 'total' = 전체시간
+            }
+        }
+        
+        self.flow_sequence.append(action)
+        return action
+
+
+
+    def get_action_display_text(self, action, coord_mgr, excel_mgr, image_mgr):
+        """액션의 표시 텍스트 반환"""
+        action_type = action.get('type', '')
+        params = action.get('params', {})
+        
+        display_texts = {
+            'click_coord': f"좌표 클릭 (ID: {params.get('coord_id')})",
+            'click_image': f"이미지 클릭",
+            'type_text': f"텍스트 입력: {params.get('text', '')[:20]}",
+            'type_variable': f"변수 입력: {params.get('var_name', '')}",
+            'key_press': f"키 입력: {params.get('key', 'unknown').upper()}",
+            'delay': f"딜레이: {params.get('seconds')}초",
+            'wait_image': f"이미지 대기 (최대 {params.get('timeout')}초)",
+            'screenshot': f"스크린샷: {params.get('filename', '')}",
+            'ocr_delay': f"OCR 숫자 인식 후 대기 (배수: {params.get('multiplier')}x)",  # 추가
+        }
+        
+        return display_texts.get(action_type, action_type)
+
     
     @staticmethod
     def get_action_display_text(action, coord_mgr=None, excel_mgr=None, image_mgr=None):

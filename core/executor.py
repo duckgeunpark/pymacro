@@ -8,7 +8,9 @@ from datetime import datetime
 import os
 import base64
 import tempfile
-
+import cv2
+import numpy as np
+from PIL import ImageGrab
 
 class MacroExecutor:
     """매크로 실행 엔진"""
@@ -279,6 +281,12 @@ class MacroExecutor:
         
         elif action_type == 'memo':
             pass  # 메모는 실행하지 않음
+
+        elif action_type == 'ocr_delay':
+            self._execute_ocr_delay(action)
+
+        elif action_type == 'ocr_region_delay':  # ← 추가
+            self._execute_ocr_region_delay(action)
         
         else:
             self.log(f"    ⚠️ 알 수 없는 액션 타입: {action_type}")
@@ -408,52 +416,53 @@ class MacroExecutor:
         """대기"""
         seconds = params.get('seconds', 1)
         time.sleep(seconds)
-    
+        
     def action_wait_image(self, params):
-        """이미지가 나타날 때까지 대기 (수정됨)"""
+        """이미지가 나타날 때까지 대기 (OpenCV 기반 수정)"""
         image_id = params.get('image_id')
         timeout = params.get('timeout', 10)
-        
+
         image = self.image_mgr.get_image(image_id)
         if not image:
             raise Exception(f"이미지 ID {image_id}를 찾을 수 없습니다.")
-        
-        self.log(f"    ⏳ 이미지 '{image['name']}' 대기 중... (최대 {timeout}초)")
-        
+
+        self.log(f"   ⏳ 이미지 '{image['name']}' 대기 중... (최대 {timeout}초)")
+
         try:
-            # base64 이미지를 임시 파일로 저장
+            # base64 디코딩 후 numpy 배열로 변환
             img_data = base64.b64decode(image['data'])
-            
-            # 임시 파일 생성
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-                tmp_file.write(img_data)
-                tmp_path = tmp_file.name
-            
-            # 타임아웃까지 반복 검색
+            nparr = np.frombuffer(img_data, np.uint8)
+            template = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+            w, h = template_gray.shape[::-1]
+
             start_time = time.time()
-            confidence = image.get('confidence', 0.8)
-            
+            confidence_threshold = image.get('confidence', 0.6)
+
             while time.time() - start_time < timeout:
                 if self.should_stop:
-                    os.unlink(tmp_path)
                     raise Exception("사용자가 중지했습니다.")
-                
-                location = pyautogui.locateOnScreen(tmp_path, confidence=confidence)
-                
-                if location:
-                    center = pyautogui.center(location)
+
+                # 화면 캡처 후 그레이스케일 변환
+                screen = np.array(ImageGrab.grab())
+                screen_gray = cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY)
+
+                # 템플릿 매칭
+                res = cv2.matchTemplate(screen_gray, template_gray, cv2.TM_CCOEFF_NORMED)
+                _, max_val, _, max_loc = cv2.minMaxLoc(res)
+
+                # 매칭 신뢰도가 기준 이상이면 위치 반환
+                if max_val >= confidence_threshold:
+                    center_x = max_loc[0] + w // 2
+                    center_y = max_loc[1] + h // 2
                     elapsed = time.time() - start_time
-                    self.log(f"    ✅ 이미지 발견! ({center.x}, {center.y}) - {elapsed:.1f}초 소요")
-                    os.unlink(tmp_path)
+                    self.log(f"   ✅ 이미지 발견! ({center_x}, {center_y}) - {elapsed:.1f}초 소요")
                     return
-                
-                time.sleep(0.5)  # 0.5초마다 체크
-            
-            # 임시 파일 삭제
-            os.unlink(tmp_path)
-            
+
+                time.sleep(0.5)
+
             raise Exception(f"이미지 '{image['name']}'을(를) {timeout}초 내에 찾을 수 없습니다.")
-        
+
         except Exception as e:
             raise Exception(f"이미지 대기 오류: {str(e)}")
     
@@ -470,3 +479,137 @@ class MacroExecutor:
         screenshot = pyautogui.screenshot()
         screenshot.save(filepath)
         self.log(f"    💾 스크린샷 저장: {filepath}")
+
+
+
+    def _execute_ocr_delay(self, action):
+        """OCR 딜레이 실행"""
+        try:
+            from core.ocr_utils import OCRUtils
+            import time
+            import base64
+            import tempfile
+            import os
+            
+            params = action.get('params', {})
+            image_id = params.get('image_id')
+            mode = params.get('mode', 'number')
+            multiplier = params.get('multiplier', 1)
+            
+            # 이미지 찾기
+            image = None
+            for img in self.image_mgr.images:
+                if img['id'] == image_id:
+                    image = img
+                    break
+            
+            if not image:
+                self.log_callback(f"❌ OCR: 이미지 ID {image_id}를 찾을 수 없습니다")
+                return
+            
+            # 이미지 저장 (임시)
+            img_data = base64.b64decode(image['data'])
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as f:
+                f.write(img_data)
+                temp_path = f.name
+            
+            try:
+                delay_seconds = 0
+                
+                if mode == 'number':
+                    numbers = OCRUtils.extract_number(temp_path)
+                    if numbers:
+                        delay_seconds = int(numbers[0]) * multiplier
+                        self.log_callback(f"🤖 OCR 숫자 인식: {numbers[0]} → {delay_seconds}초 대기")
+                
+                elif mode == 'time_mm_ss':
+                    delay_seconds = OCRUtils.extract_time(temp_path)
+                    if delay_seconds:
+                        delay_seconds = int(delay_seconds * multiplier)
+                        self.log_callback(f"🤖 OCR 시간 인식 → {delay_seconds}초 대기")
+                
+                elif mode == 'percentage':
+                    percentage = OCRUtils.extract_progress_percentage(temp_path)
+                    if percentage:
+                        delay_seconds = int(percentage * multiplier)
+                        self.log_callback(f"🤖 OCR 진행률 인식: {percentage}% → {delay_seconds}초 대기")
+                
+                if delay_seconds > 0:
+                    time.sleep(delay_seconds)
+                    self.log_callback(f"✅ OCR 대기 완료")
+                else:
+                    self.log_callback(f"⚠️ OCR: 숫자를 인식하지 못했습니다")
+            
+            finally:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+        
+        except Exception as e:
+            self.log_callback(f"❌ OCR 실행 오류: {str(e)}")
+
+
+    def _execute_ocr_region_delay(self, action):
+        """OCR 영역 인식 후 시간만큼 대기"""
+        try:
+            from core.ocr_utils import OCRUtils
+            import time
+            import mss
+            import numpy as np
+            from PIL import Image
+            
+            params = action.get('params', {})
+            region = params.get('region')
+            mode = params.get('mode', 'remaining')
+            
+            if not region:
+                self.log_callback(f"❌ OCR 영역: 영역 정보가 없습니다")
+                return
+            
+            # 화면 캡처
+            with mss.mss() as sct:
+                monitor = sct.monitors[1]
+                screenshot = sct.grab(monitor)
+                
+                # 영역 추출
+                x, y, w, h = region
+                roi = np.array(screenshot.pixel_colors[y:y+h, x:x+w])
+                
+                # 임시 파일로 저장
+                import tempfile
+                import os
+                
+                img = Image.fromarray(roi)
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as f:
+                    img.save(f.name)
+                    temp_path = f.name
+            
+            try:
+                # OCR 인식
+                text = OCRUtils.extract_text(temp_path)
+                self.log_callback(f"🤖 OCR 인식: {text}")
+                
+                # 시간 추출
+                time_data = OCRUtils.extract_time_from_text(text)
+                
+                if time_data:
+                    if mode == 'remaining':
+                        delay_seconds = time_data['remaining']
+                        self.log_callback(f"🤖 남은 시간 감지: {delay_seconds}초 대기")
+                    else:
+                        delay_seconds = time_data['total']
+                        self.log_callback(f"🤖 전체 시간 감지: {delay_seconds}초 대기")
+                    
+                    if delay_seconds > 0:
+                        time.sleep(delay_seconds)
+                        self.log_callback(f"✅ OCR 대기 완료")
+                    else:
+                        self.log_callback(f"⚠️ 대기 시간이 0입니다")
+                else:
+                    self.log_callback(f"⚠️ OCR: 시간 형식을 인식하지 못했습니다")
+            
+            finally:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+        
+        except Exception as e:
+            self.log_callback(f"❌ OCR 영역 실행 오류: {str(e)}")

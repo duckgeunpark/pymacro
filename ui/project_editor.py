@@ -1083,3 +1083,57 @@ class ProjectEditor(tk.Frame):
         """편집 완료"""
         self.save_project()
         self.app.show_start_screen()
+
+
+    def get_action_color(self, action_type):
+        """액션 타입별 색상 반환"""
+        color_map = {
+            # 마우스 동작 - 파란색
+            'click_coord': '#3498db',
+            'click_image': '#3498db',
+            
+            # 키보드 동작 - 녹색
+            'type_text': '#27ae60',
+            'type_variable': '#27ae60',
+            'key_press': '#27ae60',
+            'paste': '#27ae60',
+            
+            # 제어 동작 - 빨간색
+            'delay': '#e74c3c',
+            'wait_image': '#e74c3c',
+            
+            # 지능형 동작 - 보라색 ← 추가
+            'ocr_delay': '#9b59b6',
+            
+            # 기타 - 노란색
+            'screenshot': '#f39c12',
+        }
+        
+        return color_map.get(action_type, '#95a5a6')
+
+    def get_action_category(self, action_type):
+        """액션 카테고리 반환"""
+        categories = {
+            # 마우스 동작
+            'click_coord': '🖱️ 마우스',
+            'click_image': '🖱️ 마우스',
+            
+            # 키보드 동작
+            'type_text': '⌨️ 키보드',
+            'type_variable': '⌨️ 키보드',
+            'key_press': '⌨️ 키보드',
+            'paste': '⌨️ 키보드',
+            
+            # 제어 동작
+            'delay': '⏱️ 제어',
+            'wait_image': '⏱️ 제어',
+            
+            # 지능형 동작 ← 추가
+            'ocr_delay': '🤖 지능형',
+            
+            # 기타
+            'screenshot': '💾 기타',
+        }
+        
+        return categories.get(action_type, '❓ 기타')
+

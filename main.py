@@ -75,7 +75,7 @@ class MacroBuilderApp:
         start_screen.pack(fill='both', expand=True)
     
     def bring_to_front(self):
-        """프로그램 창을 맨 앞으로 가져오기 (F12)"""
+        """프로그램 창을 맨 앞으로 가져오기"""
         try:
             # 최소화 상태면 복원
             if self.root.state() == 'iconic':
@@ -89,7 +89,7 @@ class MacroBuilderApp:
             self.root.attributes('-topmost', True)
             self.root.after(100, lambda: self.root.attributes('-topmost', False))
             
-            print("🔼 프로그램이 맨 앞으로 이동했습니다 (F12)")
+            print("🔼 프로그램이 맨 앞으로 이동했습니다")
         except Exception as e:
             print(f"⚠️ 맨 앞으로 가져오기 오류: {e}")
     
@@ -120,8 +120,8 @@ def main():
     os.makedirs('projects', exist_ok=True)
     os.makedirs('projects/images', exist_ok=True)
     os.makedirs('projects/excel', exist_ok=True)
-    os.makedirs('logs', exist_ok=True)
-    os.makedirs('logs/screenshots', exist_ok=True)
+    os.makedirs('projects/logs', exist_ok=True)
+    os.makedirs('projects/logs/screenshots', exist_ok=True)
     
     # 앱 실행
     app = MacroBuilderApp()
