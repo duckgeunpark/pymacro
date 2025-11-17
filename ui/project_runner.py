@@ -5,9 +5,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
 from pynput import keyboard  # ← 추가
-import main
-
 from core.project_manager import ProjectManager
+from utils.ui_helpers import set_dialog_icon, center_window_on_parent
 from core.coordinate_manager import CoordinateManager
 from core.excel_manager import ExcelManager
 from core.image_manager import ImageManager
@@ -478,11 +477,7 @@ class ProjectRunner(tk.Frame):
         dialog.grab_set()
         dialog.attributes('-topmost', True)
         
-        try:
-            if hasattr(main, 'ICON_PATH') and main.ICON_PATH:
-                dialog.iconbitmap(main.ICON_PATH)
-        except:
-            pass
+        set_dialog_icon(dialog)
 
         tk.Label(
             dialog,
@@ -525,11 +520,7 @@ class ProjectRunner(tk.Frame):
             key_dialog.grab_set()
             key_dialog.attributes('-topmost', True)
             
-            try:
-                if hasattr(main, 'ICON_PATH') and main.ICON_PATH:
-                    key_dialog.iconbitmap(main.ICON_PATH)
-            except:
-                pass
+            set_dialog_icon(key_dialog)
             
             result = [None]
             
@@ -659,16 +650,7 @@ class ProjectRunner(tk.Frame):
             key_dialog.focus_force()
             
             # 중앙 배치
-            key_dialog.update_idletasks()
-            width = key_dialog.winfo_width()
-            height = key_dialog.winfo_height()
-            parent_x = dialog.winfo_x()
-            parent_y = dialog.winfo_y()
-            parent_width = dialog.winfo_width()
-            parent_height = dialog.winfo_height()
-            x = parent_x + (parent_width - width) // 2
-            y = parent_y + (parent_height - height) // 2
-            key_dialog.geometry(f'{width}x{height}+{x}+{y}')
+            center_window_on_parent(key_dialog, dialog)
             
             key_dialog.lift()
             key_dialog.focus_force()

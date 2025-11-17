@@ -1,0 +1,151 @@
+{
+    "name": "project",
+    "description": "",
+    "coordinates": [
+        {
+            "id": 1,
+            "name": "더가히",
+            "x": 2226,
+            "y": 14,
+            "description": "",
+            "thumbnail": "iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAIAAACRXR/mAAAAHklEQVR4nO3BMQEAAADCoPVPbQhfoAAAAAAAAAD4DR1+AAEKUu82AAAAAElFTkSuQmCC"
+        },
+        {
+            "id": 2,
+            "name": "제거하기",
+            "x": 2424,
+            "y": 16,
+            "description": "",
+            "thumbnail": "iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAIAAACRXR/mAAAAHklEQVR4nO3BMQEAAADCoPVPbQhfoAAAAAAAAAD4DR1+AAEKUu82AAAAAElFTkSuQmCC"
+        },
+        {
+            "id": 3,
+            "name": "화면",
+            "x": 2414,
+            "y": 207,
+            "description": "",
+            "thumbnail": "iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAIAAACRXR/mAAAAHklEQVR4nO3BMQEAAADCoPVPbQhfoAAAAAAAAAD4DR1+AAEKUu82AAAAAElFTkSuQmCC"
+        }
+    ],
+    "excel_sources": [
+        {
+            "id": 1,
+            "name": "테스트",
+            "filepath": "통합 문서1_2.xlsx",
+            "sheet_name": "Sheet1",
+            "columns": [
+                "순번",
+                "테스트"
+            ],
+            "row_count": 10,
+            "preview": [
+                {
+                    "순번": 1,
+                    "테스트": "임영웅"
+                },
+                {
+                    "순번": 2,
+                    "테스트": "이찬원"
+                },
+                {
+                    "순번": 3,
+                    "테스트": "영탁"
+                },
+                {
+                    "순번": 4,
+                    "테스트": "송가인"
+                },
+                {
+                    "순번": 5,
+                    "테스트": "정동원"
+                }
+            ]
+        }
+    ],
+    "images": [],
+    "flow_sequence": [
+        {
+            "id": 1,
+            "type": "click_coord",
+            "params": {
+                "coord_id": 1,
+                "click_type": "left",
+                "click_count": 1,
+                "pre_delay": 0.2,
+                "post_delay": 0.2
+            }
+        },
+        {
+            "id": 2,
+            "type": "delay",
+            "params": {
+                "seconds": 3.0
+            }
+        },
+        {
+            "id": 3,
+            "type": "click_coord",
+            "params": {
+                "coord_id": 2,
+                "click_type": "left",
+                "click_count": 1,
+                "pre_delay": 0.2,
+                "post_delay": 0.2
+            }
+        },
+        {
+            "id": 4,
+            "type": "click_coord",
+            "params": {
+                "coord_id": 3,
+                "click_type": "left",
+                "click_count": 1,
+                "pre_delay": 0.2,
+                "post_delay": 0.2
+            }
+        },
+        {
+            "id": 5,
+            "type": "type_variable",
+            "params": {
+                "var_type": "excel",
+                "var_name": "테스트",
+                "interval": 0.05
+            }
+        },
+        {
+            "id": 6,
+            "type": "delay",
+            "params": {
+                "seconds": 1.0
+            }
+        },
+        {
+            "id": 7,
+            "type": "key_press",
+            "params": {
+                "key": "enter"
+            }
+        }
+    ],
+    "settings": {
+        "hotkeys": {
+            "start": "F9",
+            "pause": "F10",
+            "stop": "F11",
+            "focus": "F12"
+        },
+        "execution": {
+            "mode": "excel_loop",
+            "repeat_count": 1,
+            "excel_start_row": 1,
+            "excel_end_row": null,
+            "excel_infinite_loop": true,
+            "on_error": "skip",
+            "retry_count": 3,
+            "speed": "normal"
+        }
+    },
+    "created_at": "2025-11-17T15:10:09.455018",
+    "modified_at": "2025-11-17T15:15:05.679298"
+}

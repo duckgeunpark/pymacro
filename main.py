@@ -6,63 +6,45 @@ from tkinter import messagebox
 import sys
 import os
 
-
 # 프로젝트 내부 모듈
+from core.config import config
 from ui.start_screen import StartScreen
-
-ICON_PATH = None
 
 
 class MacroBuilderApp:
-    def __init__(self):
-        global ICON_PATH
+    """메인 애플리케이션 클래스"""
 
+    def __init__(self):
+        # 설정 초기화
+        config.initialize()
+
+        # 메인 윈도우 설정
         self.root = tk.Tk()
         self.root.title("dMax MacroBuilder")
         self.root.geometry("750x650")
         self.root.minsize(750, 650)
-        
-        ICON_PATH = self.get_icon_path()
 
-        # 윈도우 아이콘 설정 (추가)
+        # 윈도우 아이콘 설정
         self.set_window_icon()
 
-        # 프로그램 종료 시 확인
+        # 이벤트 바인딩
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        
-        # F12 단축키로 맨 앞으로 가져오기
         self.root.bind('<F12>', lambda e: self.bring_to_front())
-        
+
         # 시작 화면 표시
         self.show_start_screen()
-
-    def get_icon_path(self):
-            """아이콘 파일 경로 반환"""
-            try:
-                if getattr(sys, 'frozen', False):
-                    application_path = os.path.dirname(sys.executable)
-                else:
-                    application_path = os.path.dirname(os.path.abspath(__file__))
-                
-                icon_path = os.path.join(application_path, 'resources', 'icon.ico')
-                
-                if os.path.exists(icon_path):
-                    return icon_path
-                else:
-                    return None
-            except:
-                return None
 
     def set_window_icon(self):
         """윈도우 아이콘 설정"""
         try:
-            if ICON_PATH and os.path.exists(ICON_PATH):
-                self.root.iconbitmap(ICON_PATH)
-                print(f"✅ 아이콘 설정: {ICON_PATH}")
+            icon_path = config.icon_path
+            if icon_path and os.path.exists(icon_path):
+                self.root.iconbitmap(icon_path)
+                print(f"[OK] 아이콘 설정: {icon_path}")
             else:
-                print("⚠️ 아이콘 파일 없음")
+                print("[WARNING] 아이콘 파일 없음")
         except Exception as e:
-            print(f"⚠️ 아이콘 설정 실패: {e}")
+            print(f"[WARNING] 아이콘 설정 실패: {e}")
         
     def show_start_screen(self):
         """시작 화면 표시"""
@@ -89,9 +71,9 @@ class MacroBuilderApp:
             self.root.attributes('-topmost', True)
             self.root.after(100, lambda: self.root.attributes('-topmost', False))
             
-            print("🔼 프로그램이 맨 앞으로 이동했습니다")
+            print("[INFO] 프로그램이 맨 앞으로 이동했습니다")
         except Exception as e:
-            print(f"⚠️ 맨 앞으로 가져오기 오류: {e}")
+            print(f"[WARNING] 맨 앞으로 가져오기 오류: {e}")
     
     def on_closing(self):
         """프로그램 종료 확인"""
@@ -106,23 +88,11 @@ class MacroBuilderApp:
 
 def main():
     """메인 함수"""
-    # 작업 디렉토리 설정 (exe 실행 시 경로 문제 해결)
-    if getattr(sys, 'frozen', False):
-        # exe로 실행 중
-        application_path = os.path.dirname(sys.executable)
-    else:
-        # 스크립트로 실행 중
-        application_path = os.path.dirname(os.path.abspath(__file__))
-    
-    os.chdir(application_path)
-    
-    # 필요한 폴더 생성
-    os.makedirs('projects', exist_ok=True)
-    os.makedirs('projects/images', exist_ok=True)
-    os.makedirs('projects/excel', exist_ok=True)
-    os.makedirs('projects/logs', exist_ok=True)
-    os.makedirs('projects/logs/screenshots', exist_ok=True)
-    
+    # 설정 초기화 및 디렉토리 생성
+    config.initialize()
+    os.chdir(config.app_path)
+    config.create_directories()
+
     # 앱 실행
     app = MacroBuilderApp()
     app.run()

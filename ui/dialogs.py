@@ -2,17 +2,9 @@
 각종 다이얼로그
 """
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog 
+from tkinter import ttk, messagebox, simpledialog
 from datetime import datetime
-import main  # ICON_PATH 가져오기
-
-def set_dialog_icon(dialog):
-    """다이얼로그에 아이콘 설정"""
-    try:
-        if hasattr(main, 'ICON_PATH') and main.ICON_PATH:
-            dialog.iconbitmap(main.ICON_PATH)
-    except Exception as e:
-        pass  # 조용히 실패
+from utils.ui_helpers import set_dialog_icon, center_window_on_parent, center_window_on_screen
 
 class NewProjectDialog(tk.Toplevel):
     """새 프로젝트 생성 다이얼로그"""
@@ -31,21 +23,12 @@ class NewProjectDialog(tk.Toplevel):
         self.attributes('-topmost', True)
         set_dialog_icon(self)
         self.setup_ui()
-        
+
         # 창 중앙 배치
-        self.center_window()
+        center_window_on_screen(self)
 
         self.lift()
         self.focus_force()
-    
-    def center_window(self):
-        """창을 화면 중앙에 배치"""
-        self.update_idletasks()
-        width = self.winfo_width()
-        height = self.winfo_height()
-        x = (self.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
-        self.geometry(f'{width}x{height}+{x}+{y}')
     
     def setup_ui(self):
         """UI 구성"""
@@ -166,31 +149,11 @@ class NameInputDialog(tk.Toplevel):
 
 
         self.setup_ui(message, initial_value)
-        self.center_window()
-        
+        center_window_on_parent(self, self.master)
+
         # 포커스
         self.lift()
         self.focus_force()
-    
-    def center_window(self):
-        """창을 부모 중앙에 배치"""
-        self.update_idletasks()
-        
-        # 부모 창의 위치와 크기
-        parent_x = self.master.winfo_x()
-        parent_y = self.master.winfo_y()
-        parent_width = self.master.winfo_width()
-        parent_height = self.master.winfo_height()
-        
-        # 다이얼로그 크기
-        dialog_width = self.winfo_width()
-        dialog_height = self.winfo_height()
-        
-        # 중앙 위치 계산
-        x = parent_x + (parent_width - dialog_width) // 2
-        y = parent_y + (parent_height - dialog_height) // 2
-        
-        self.geometry(f'{dialog_width}x{dialog_height}+{x}+{y}')
     
     def setup_ui(self, message, initial_value):
         """UI 구성"""
@@ -568,126 +531,6 @@ class ActionSelectDialog(tk.Toplevel):
         # 액션 버튼들
         self.create_action_buttons(main_frame)
 
-    def config_ocr_delay(self):
-        """OCR 딜레이 설정"""
-        if not self.image_mgr.images:
-            messagebox.showerror("오류", "등록된 이미지가 없습니다.")
-            return None
-        
-        dialog = tk.Toplevel(self)
-        dialog.title("OCR 딜레이 설정")
-        dialog.geometry("400x450")
-        dialog.transient(self)
-        dialog.grab_set()
-        dialog.attributes('-topmost', True)
-        set_dialog_icon(dialog)
-        
-        result = [None]
-        
-        tk.Label(
-            dialog,
-            text="OCR로 인식할 이미지 선택",
-            font=("맑은 고딕", 11, "bold")
-        ).pack(pady=15)
-        
-        tk.Label(
-            dialog,
-            text="이미지 선택:",
-            font=("맑은 고딕", 10, "bold")
-        ).pack(anchor='w', padx=20, pady=(10, 5))
-        
-        image_var = tk.StringVar()
-        image_combo = ttk.Combobox(
-            dialog,
-            textvariable=image_var,
-            font=("맑은 고딕", 10),
-            state='readonly'
-        )
-        image_values = [f"{img['id']}. {img['name']}" for img in self.image_mgr.images]
-        image_combo['values'] = image_values
-        image_combo.current(0)
-        image_combo.pack(fill='x', padx=20, pady=(0, 15))
-        
-        tk.Label(
-            dialog,
-            text="인식 모드:",
-            font=("맑은 고딕", 10, "bold")
-        ).pack(anchor='w', padx=20, pady=(10, 5))
-        
-        mode_var = tk.StringVar(value='number')
-        tk.Radiobutton(dialog, text="숫자만 인식 (예: '5' → 5초 대기)", 
-                    variable=mode_var, value='number').pack(anchor='w', padx=40)
-        tk.Radiobutton(dialog, text="시간 형식 (예: '1:30' → 90초 대기)", 
-                    variable=mode_var, value='time_mm_ss').pack(anchor='w', padx=40)
-        tk.Radiobutton(dialog, text="진행률 (예: '50%' → 50초 대기)", 
-                    variable=mode_var, value='percentage').pack(anchor='w', padx=40)
-        
-        tk.Label(
-            dialog,
-            text="배수 설정:",
-            font=("맑은 고딕", 10, "bold")
-        ).pack(anchor='w', padx=20, pady=(15, 5))
-        
-        tk.Label(
-            dialog,
-            text="배수: 1 = 1초, 60 = 1분으로 변환",
-            font=("맑은 고딕", 9),
-            fg='gray'
-        ).pack(anchor='w', padx=40, pady=(0, 5))
-        
-        multiplier_var = tk.StringVar(value='1')
-        multiplier_spin = tk.Spinbox(
-            dialog,
-            from_=1,
-            to=600,
-            font=("맑은 고딕", 10),
-            width=10,
-            textvariable=multiplier_var
-        )
-        multiplier_spin.pack(anchor='w', padx=40, pady=(0, 15))
-        
-        def on_ok():
-            selected_idx = image_combo.current()
-            image_id = self.image_mgr.images[selected_idx]['id']
-            
-            try:
-                multiplier = int(multiplier_var.get())
-            except:
-                multiplier = 1
-            
-            result[0] = {
-                'image_id': image_id,
-                'mode': mode_var.get(),
-                'multiplier': multiplier
-            }
-            dialog.destroy()
-        
-        tk.Button(
-            dialog,
-            text="확인",
-            command=on_ok,
-            bg='#3498db',
-            fg='white',
-            padx=20,
-            pady=5
-        ).pack(pady=20)
-        
-        dialog.update_idletasks()
-        width = dialog.winfo_width()
-        height = dialog.winfo_height()
-        parent_x = self.winfo_x()
-        parent_y = self.winfo_y()
-        parent_width = self.winfo_width()
-        parent_height = self.winfo_height()
-        x = parent_x + (parent_width - width) // 2
-        y = parent_y + (parent_height - height) // 2
-        dialog.geometry(f'{width}x{height}+{x}+{y}')
-        
-        dialog.lift()
-        dialog.focus_force()
-        
-        self.wait_window(dialog)
-        return result[0]
 
     def create_action_buttons(self, parent):
         """액션 버튼 생성"""
@@ -787,35 +630,6 @@ class ActionSelectDialog(tk.Toplevel):
         ).grid(row=0, column=1, padx=5, pady=5)
 
 
-# OCR 액션
-        section = tk.LabelFrame(
-            parent,
-            text="🤖 지능형 동작",
-            font=("맑은 고딕", 11, "bold"),
-            padx=10,
-            pady=10
-        )
-        section.pack(fill='x', pady=5)
-
-        btn_frame = tk.Frame(section)
-        btn_frame.pack()
-
-        tk.Button(
-            btn_frame,
-            text="OCR 딜레이",
-            font=("맑은 고딕", 9),
-            width=12,
-            command=lambda: self.select_action('ocr_delay')
-        ).grid(row=0, column=0, padx=5, pady=5)
-
-        tk.Button(
-            btn_frame,
-            text="OCR 영역",
-            font=("맑은 고딕", 9),
-            width=12,
-            command=lambda: self.select_action('ocr_region_delay')  # ← 추가
-        ).grid(row=0, column=1, padx=5, pady=5)
-
         # 기타
         section = tk.LabelFrame(
             parent,
@@ -858,10 +672,6 @@ class ActionSelectDialog(tk.Toplevel):
             params = self.config_wait_image()
         elif action_type == 'screenshot':
             params = self.config_screenshot()
-        elif action_type == 'ocr_delay':
-            params = self.config_ocr_delay()
-        elif action_type == 'ocr_region_delay':  # ← 추가
-            params = self.config_ocr_region_delay()
         if params is not None:
             self.result = {
                 'type': action_type,
@@ -1449,207 +1259,3 @@ class ActionSelectDialog(tk.Toplevel):
         return result[0]
 
 
-    def config_ocr_region_delay(self):
-        """OCR 영역 선택 후 설정"""
-        import tkinter as tk
-        from PIL import Image
-        import io
-        import base64
-        
-        dialog = tk.Toplevel(self)
-        dialog.title("OCR 영역 선택")
-        dialog.geometry("350x380")
-        dialog.resizable(False, False)
-        dialog.transient(self)
-        dialog.grab_set()
-        dialog.attributes('-topmost', True)
-        
-        try:
-            if hasattr(main, 'ICON_PATH') and main.ICON_PATH:
-                dialog.iconbitmap(main.ICON_PATH)
-        except:
-            pass
-        
-        result = [None]
-        
-        tk.Label(
-            dialog,
-            text="OCR 영역 선택",
-            font=("맑은 고딕", 12, "bold"),
-            bg='white'
-        ).pack(pady=15)
-        
-        region_label = tk.Label(
-            dialog,
-            text="영역 미선택",
-            font=("맑은 고딕", 10),
-            fg='gray',
-            bg='white'
-        )
-        region_label.pack(pady=10)
-        
-        mode_var = tk.StringVar(value='remaining')
-        
-        tk.Label(
-            dialog,
-            text="인식 모드:",
-            font=("맑은 고딕", 10, "bold"),
-            bg='white',
-            fg='#2c3e50'
-        ).pack(anchor='w', padx=20, pady=(10, 5))
-        
-        tk.Radiobutton(
-            dialog,
-            text="남은 시간 (00:30/12:34 → 11:34초)",
-            variable=mode_var,
-            value='remaining',
-            font=("맑은 고딕", 9),
-            bg='white'
-        ).pack(anchor='w', padx=40, pady=3)
-        
-        tk.Radiobutton(
-            dialog,
-            text="전체 시간 (12:34 → 754초)",
-            variable=mode_var,
-            value='total',
-            font=("맑은 고딕", 9),
-            bg='white'
-        ).pack(anchor='w', padx=40, pady=3)
-        
-        selected_region = [None]
-        
-        def select_region():
-            """영역 선택 함수 - 개선됨"""
-            # 다이얼로그 숨김
-            dialog.withdraw()
-            
-            # 약간의 딜레이를 줘서 다이얼로그가 완전히 숨겨지도록
-            def do_capture():
-                try:
-                    from core.coordinate_manager import CoordinateManager
-                    print("영역 선택 시작")
-                    region = CoordinateManager.capture_ocr_region_screenshot()
-                    print(f"선택된 영역: {region}")
-                    
-                    if region:
-                        selected_region[0] = region
-                        x, y, w, h = region
-                        region_label.config(
-                            text=f"✅ 영역: ({x}, {y}) - {w}×{h}",
-                            fg='#27ae60'
-                        )
-                    else:
-                        region_label.config(
-                            text="❌ 영역 선택 취소됨",
-                            fg='#e74c3c'
-                        )
-                        print("영역 선택 취소 또는 실패")
-                except Exception as e:
-                    print(f"영역 선택 오류: {e}")
-                    region_label.config(
-                        text=f"❌ 오류: {str(e)[:20]}...",
-                        fg='#e74c3c'
-                    )
-                finally:
-                    # 다이얼로그 다시 표시
-                    dialog.deiconify()
-                    dialog.lift()
-                    dialog.focus_force()
-                    print("다이얼로그 복원 완료")
-            
-            # 100ms 후 캡처 실행 (다이얼로그가 완전히 숨겨진 후)
-            dialog.after(100, do_capture)
-        
-        tk.Button(
-            dialog,
-            text="🎯 영역 선택",
-            command=select_region,
-            bg='#3498db',
-            fg='white',
-            padx=20,
-            pady=8,
-            font=("맑은 고딕", 10)
-        ).pack(pady=15)
-        
-        def on_ok():
-            if not selected_region[0]:
-                # 오류 다이얼로그 표시
-                error_dialog = tk.Toplevel(dialog)
-                error_dialog.title("오류")
-                error_dialog.geometry("300x120")
-                error_dialog.resizable(False, False)
-                error_dialog.transient(dialog)
-                error_dialog.grab_set()
-                error_dialog.attributes('-topmost', True)
-                
-                tk.Label(
-                    error_dialog,
-                    text="영역을 선택하세요!",
-                    font=("맑은 고딕", 11),
-                    fg='#e74c3c',
-                    bg='white'
-                ).pack(pady=20)
-                
-                tk.Button(
-                    error_dialog,
-                    text="확인",
-                    command=error_dialog.destroy,
-                    bg='#3498db',
-                    fg='white',
-                    padx=20,
-                    pady=5
-                ).pack(pady=10)
-                
-                return
-            
-            result[0] = {
-                'region': selected_region[0],
-                'mode': mode_var.get()
-            }
-            dialog.destroy()
-        
-        def on_cancel():
-            dialog.destroy()
-        
-        btn_frame = tk.Frame(dialog, bg='white')
-        btn_frame.pack(pady=15)
-        
-        tk.Button(
-            btn_frame,
-            text="확인",
-            command=on_ok,
-            bg='#27ae60',
-            fg='white',
-            padx=25,
-            pady=6,
-            font=("맑은 고딕", 10)
-        ).pack(side='left', padx=5)
-        
-        tk.Button(
-            btn_frame,
-            text="취소",
-            command=on_cancel,
-            bg='#95a5a6',
-            fg='white',
-            padx=25,
-            pady=6,
-            font=("맑은 고딕", 10)
-        ).pack(side='left', padx=5)
-        
-        # 중앙 배치
-        dialog.update_idletasks()
-        width = dialog.winfo_width()
-        height = dialog.winfo_height()
-        parent_x = self.winfo_x()
-        parent_y = self.winfo_y()
-        parent_width = self.winfo_width()
-        parent_height = self.winfo_height()
-        x = parent_x + (parent_width - width) // 2
-        y = parent_y + (parent_height - height) // 2
-        dialog.geometry(f'{width}x{height}+{x}+{y}')
-        
-        dialog.lift()
-        dialog.focus_force()
-        
-        dialog.wait_window()
-        return result[0]

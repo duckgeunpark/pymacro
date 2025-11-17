@@ -1,25 +1,25 @@
-# PyMacro 자동화 - 필수 라이브러리
+# PyMacro automation - required libraries
 
-# 자동화
+# automation
 pyautogui==0.9.54
 pynput==1.7.6
 pyperclip==1.8.2
 
-# 데이터 처리
+# data processing
 pandas==2.2.0
 openpyxl==3.1.2
 xlrd==2.0.1
 
-# 이미지 처리
+# image processing
 Pillow==10.2.0
 opencv-python==4.8.1.78
 numpy
 
-# OCR (광학 문자 인식)
+# OCR
 pytesseract==0.3.10
 
-# 화면 캡처
+# screen capture
 mss==9.0.1
 
-# 빌드 도구
+# build tools
 pyinstaller==6.3.0

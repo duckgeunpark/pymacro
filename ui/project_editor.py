@@ -4,7 +4,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
 from datetime import datetime
-import main
+from utils.ui_helpers import set_dialog_icon, center_window_on_parent
 
 from core.project_manager import ProjectManager
 from core.coordinate_manager import CoordinateManager
@@ -13,35 +13,6 @@ from core.image_manager import ImageManager
 from core.flow_manager import FlowManager
 from ui.dialogs import ActionSelectDialog, NameInputDialog
 
-def set_dialog_icon(dialog):
-    """다이얼로그에 아이콘 설정"""
-    try:
-        if hasattr(main, 'ICON_PATH') and main.ICON_PATH:
-            dialog.iconbitmap(main.ICON_PATH)
-    except Exception as e:
-        print(f"⚠️ 다이얼로그 아이콘 설정 실패: {e}")
-
-def center_dialog(dialog, parent):
-    """다이얼로그를 부모 창 중앙에 배치"""
-    dialog.update_idletasks()
-    
-    # 부모 창의 위치와 크기
-    parent_x = parent.winfo_x()
-    parent_y = parent.winfo_y()
-    parent_width = parent.winfo_width()
-    parent_height = parent.winfo_height()
-    
-    # 다이얼로그 크기
-    dialog_width = dialog.winfo_width()
-    dialog_height = dialog.winfo_height()
-    
-    # 중앙 위치 계산
-    x = parent_x + (parent_width - dialog_width) // 2
-    y = parent_y + (parent_height - dialog_height) // 2
-    
-    dialog.geometry(f'+{x}+{y}')
-
-    set_dialog_icon(dialog)
 
 
 class ProjectEditor(tk.Frame):
@@ -567,7 +538,7 @@ class ProjectEditor(tk.Frame):
             command=start_capture
         ).pack(pady=15)
 
-        center_dialog(dialog, self.parent)  # 이미 아이콘 설정 포함
+        center_window_on_parent(dialog, self.parent)  # 이미 아이콘 설정 포함
         dialog.lift()
         dialog.focus_force()
         
@@ -702,7 +673,7 @@ class ProjectEditor(tk.Frame):
             pady=5,
             command=on_cancel
         ).pack(side='left', padx=5)
-        center_dialog(dialog, self.parent)
+        center_window_on_parent(dialog, self.parent)
         dialog.lift()
         dialog.focus_force()
         # Enter 키 바인딩
@@ -812,7 +783,7 @@ class ProjectEditor(tk.Frame):
         listbox.bind('<Return>', lambda e: on_select())
         
         # 중앙 배치 추가
-        center_dialog(dialog, self.parent)
+        center_window_on_parent(dialog, self.parent)
         dialog.lift()
         dialog.focus_force()
         listbox.focus_set()
@@ -969,7 +940,7 @@ class ProjectEditor(tk.Frame):
 
         # 중앙 배치 및 포커스 (추가)
         dialog.attributes('-topmost', True)
-        center_dialog(dialog, self.parent)
+        center_window_on_parent(dialog, self.parent)
         dialog.lift()
         dialog.focus_force()
 
@@ -1101,10 +1072,7 @@ class ProjectEditor(tk.Frame):
             # 제어 동작 - 빨간색
             'delay': '#e74c3c',
             'wait_image': '#e74c3c',
-            
-            # 지능형 동작 - 보라색 ← 추가
-            'ocr_delay': '#9b59b6',
-            
+
             # 기타 - 노란색
             'screenshot': '#f39c12',
         }
@@ -1127,10 +1095,7 @@ class ProjectEditor(tk.Frame):
             # 제어 동작
             'delay': '⏱️ 제어',
             'wait_image': '⏱️ 제어',
-            
-            # 지능형 동작 ← 추가
-            'ocr_delay': '🤖 지능형',
-            
+
             # 기타
             'screenshot': '💾 기타',
         }

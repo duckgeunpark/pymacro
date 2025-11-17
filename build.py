@@ -24,7 +24,6 @@ def build_exe():
             '--hidden-import=PIL._tkinter_finder',
             '--hidden-import=openpyxl',
             '--hidden-import=pandas',
-            '--hidden-import=pyautogui',
             '--hidden-import=pynput',
             '--hidden-import=pyperclip',
             'main.py'

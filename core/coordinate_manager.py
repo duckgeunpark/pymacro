@@ -14,9 +14,7 @@ class CoordinateManager:
     
     def __init__(self):
         self.coordinates = []
-        self.ocr_regions = []  # ← 추가
         self.next_id = 1
-        self.next_region_id = 1  # ← 추가
     
     def add_coordinate(self, name, x, y, description="", thumbnail=None):
         """좌표 추가"""
@@ -69,41 +67,6 @@ class CoordinateManager:
             print(f"썸네일 캡처 오류: {e}")
             return x, y, None
     
-    # ===== OCR 영역 관리 (추가) =====
-    
-    def add_ocr_region(self, name, x, y, w, h, mode='remaining'):
-        """OCR 영역 추가"""
-        region = {
-            'id': self.next_region_id,
-            'name': name,
-            'x': x,
-            'y': y,
-            'w': w,
-            'h': h,
-            'mode': mode,  # 'remaining' 또는 'total'
-            'thumbnail': self._capture_region_thumbnail(x, y, w, h)
-        }
-        self.ocr_regions.append(region)
-        self.next_region_id += 1
-        return region
-    
-    def remove_ocr_region(self, region_id):
-        """OCR 영역 삭제"""
-        self.ocr_regions = [r for r in self.ocr_regions if r['id'] != region_id]
-    
-    def get_ocr_region(self, region_id):
-        """ID로 OCR 영역 찾기"""
-        for region in self.ocr_regions:
-            if region['id'] == region_id:
-                return region
-        return None
-    
-    def update_ocr_region(self, region_id, **kwargs):
-        """OCR 영역 업데이트"""
-        region = self.get_ocr_region(region_id)
-        if region:
-            region.update(kwargs)
-            return True
         return False
     
     @staticmethod
@@ -122,7 +85,7 @@ class CoordinateManager:
 
             
     @staticmethod
-    def capture_ocr_region_screenshot():
+    def capture_region_with_overlay():
         """
         안전하게 오버레이 Toplevel만 생성&파괴(메인 루트 건드리지 않음)
         """
@@ -206,29 +169,20 @@ class CoordinateManager:
 
     def capture_region_screenshot(self):
         """영역 선택 스크린샷"""
-        return self.capture_ocr_region_screenshot()
+        return CoordinateManager.capture_region_with_overlay()
     
     # ===== 저장/로드 =====
     
-    def load_from_list(self, coord_list, region_list=None):
-        """리스트에서 좌표와 OCR 영역 로드"""
+    def load_from_list(self, coord_list):
+        """리스트에서 좌표 로드"""
         self.coordinates = coord_list
-        self.ocr_regions = region_list if region_list else []
-        
+
         if coord_list:
             self.next_id = max(c['id'] for c in coord_list) + 1
         else:
             self.next_id = 1
-        
-        if region_list:
-            self.next_region_id = max(r['id'] for r in region_list) + 1
-        else:
-            self.next_region_id = 1
     
     def to_list(self):
         """리스트로 변환 (좌표)"""
         return self.coordinates
     
-    def to_region_list(self):
-        """OCR 영역 리스트로 변환"""
-        return self.ocr_regions
