@@ -15,7 +15,7 @@
 
 ### 개발 환경
 
-1. Python 3.8+ 설치
+1. Python 설치
 2. 의존성 설치:
 ``` pip install -r requirements.txt ```
 
