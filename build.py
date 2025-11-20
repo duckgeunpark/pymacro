@@ -18,6 +18,7 @@ def build_exe():
             '--windowed',
             '--name=MacroBuilder',
             '--icon=resources/icon.ico',              # EXE 파일 아이콘
+            '--version-file=version_info.txt',  
             '--add-data=resources;resources',         # resources 폴더 포함 ⭐
             '--add-data=ui;ui',
             '--add-data=core;core',

@@ -14,21 +14,22 @@ from PIL import ImageGrab
 
 class MacroExecutor:
     """매크로 실행 엔진"""
-    
-    def __init__(self, project_data, coord_mgr, excel_mgr, image_mgr, flow_mgr):
+
+    def __init__(self, project_data, coord_mgr, excel_mgr, image_mgr, flow_mgr, project_filepath=None):
         self.project_data = project_data
         self.coord_mgr = coord_mgr
         self.excel_mgr = excel_mgr
         self.image_mgr = image_mgr
         self.flow_mgr = flow_mgr
-        
+        self.project_filepath = project_filepath
+
         self.is_running = False
         self.is_paused = False
         self.should_stop = False
-        
+
         self.current_row = 0
         self.current_action = 0
-        
+
         # 로그
         self.log_callback = None
         self.progress_callback = None
@@ -463,14 +464,28 @@ class MacroExecutor:
     
     def action_screenshot(self, params):
         """스크린샷 저장"""
-        filename = params.get('filename', f'screenshot_{datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
-        
-        # logs/screenshots 폴더 생성
-        screenshot_dir = os.path.join('logs', 'screenshots')
+        base_filename = params.get('filename', 'screenshot')
+
+        # 확장자가 있으면 제거
+        if base_filename.endswith('.png'):
+            base_filename = base_filename[:-4]
+
+        # 타임스탬프 추가
+        filename = f"{base_filename}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+
+        # 프로젝트 폴더 내부에 logs/screenshots 폴더 생성
+        if self.project_filepath:
+            # 프로젝트 파일이 있는 디렉토리 경로
+            project_dir = os.path.dirname(self.project_filepath)
+            screenshot_dir = os.path.join(project_dir, 'logs', 'screenshots')
+        else:
+            # 프로젝트 파일 경로가 없으면 현재 디렉토리 사용
+            screenshot_dir = os.path.join('logs', 'screenshots')
+
         os.makedirs(screenshot_dir, exist_ok=True)
-        
+
         filepath = os.path.join(screenshot_dir, filename)
-        
+
         screenshot = pyautogui.screenshot()
         screenshot.save(filepath)
         self.log(f"    💾 스크린샷 저장: {filepath}")

@@ -21,8 +21,8 @@ class MacroBuilderApp:
         # 메인 윈도우 설정
         self.root = tk.Tk()
         self.root.title("dMax MacroBuilder")
-        self.root.geometry("750x650")
-        self.root.minsize(750, 650)
+        self.root.geometry("550x670")
+        self.root.minsize(550, 670)
 
         # 윈도우 아이콘 설정
         self.set_window_icon()

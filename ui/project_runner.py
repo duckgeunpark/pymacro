@@ -40,7 +40,8 @@ class ProjectRunner(tk.Frame):
             self.coord_mgr,
             self.excel_mgr,
             self.image_mgr,
-            self.flow_mgr
+            self.flow_mgr,
+            filepath  # 프로젝트 파일 경로 전달
         )
         
         self.executor.set_callbacks(
@@ -187,7 +188,7 @@ class ProjectRunner(tk.Frame):
         ).pack(side='left', padx=5)
         
         # 메인 컨텐츠
-        content = tk.Frame(self, bg='white')
+        content = tk.Frame(self, bg='#F0F0F0')
         content.pack(fill='both', expand=True, padx=30, pady=20)
         
         # 단축키 정보 표시
@@ -195,7 +196,7 @@ class ProjectRunner(tk.Frame):
             content,
             text="⌨️ 단축키",
             font=("맑은 고딕", 11, "bold"),
-            bg='white',
+            bg='#F0F0F0',
             padx=15,
             pady=10
         )
@@ -211,7 +212,7 @@ class ProjectRunner(tk.Frame):
             hotkey_frame,
             text=hotkey_text,
             font=("맑은 고딕", 9),
-            bg='white',
+            bg='#F0F0F0',
             fg='#2c3e50'
         ).pack()
         
@@ -220,36 +221,36 @@ class ProjectRunner(tk.Frame):
             content,
             text="📋 프로젝트 정보",
             font=("맑은 고딕", 11, "bold"),
-            bg='white',
+            bg='#F0F0F0',
             padx=15,
             pady=15
         )
         info_frame.pack(fill='x', pady=(0, 20))
         
-        info_grid = tk.Frame(info_frame, bg='white')
+        info_grid = tk.Frame(info_frame, bg='#F0F0F0')
         info_grid.pack()
         
-        tk.Label(info_grid, text="• 좌표:", font=("맑은 고딕", 10), bg='white').grid(row=0, column=0, sticky='w', padx=5)
-        tk.Label(info_grid, text=f"{len(self.coord_mgr.coordinates)}개", font=("맑은 고딕", 10), bg='white').grid(row=0, column=1, sticky='w')
+        tk.Label(info_grid, text="• 좌표:", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=0, column=0, sticky='w', padx=5)
+        tk.Label(info_grid, text=f"{len(self.coord_mgr.coordinates)}개", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=0, column=1, sticky='w')
         
-        tk.Label(info_grid, text="• 엑셀:", font=("맑은 고딕", 10), bg='white').grid(row=1, column=0, sticky='w', padx=5)
+        tk.Label(info_grid, text="• 엑셀:", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=1, column=0, sticky='w', padx=5)
         excel_info = f"{len(self.excel_mgr.excel_sources)}개"
         if self.excel_mgr.excel_sources:
             excel_info += f" ({self.excel_mgr.excel_sources[0]['row_count']} rows)"
-        tk.Label(info_grid, text=excel_info, font=("맑은 고딕", 10), bg='white').grid(row=1, column=1, sticky='w')
+        tk.Label(info_grid, text=excel_info, font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=1, column=1, sticky='w')
         
-        tk.Label(info_grid, text="• 이미지:", font=("맑은 고딕", 10), bg='white').grid(row=2, column=0, sticky='w', padx=5)
-        tk.Label(info_grid, text=f"{len(self.image_mgr.images)}개", font=("맑은 고딕", 10), bg='white').grid(row=2, column=1, sticky='w')
+        tk.Label(info_grid, text="• 이미지:", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=2, column=0, sticky='w', padx=5)
+        tk.Label(info_grid, text=f"{len(self.image_mgr.images)}개", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=2, column=1, sticky='w')
         
-        tk.Label(info_grid, text="• 플로우:", font=("맑은 고딕", 10), bg='white').grid(row=3, column=0, sticky='w', padx=5)
-        tk.Label(info_grid, text=f"{len(self.flow_mgr.flow_sequence)}개 액션", font=("맑은 고딕", 10), bg='white').grid(row=3, column=1, sticky='w')
+        tk.Label(info_grid, text="• 플로우:", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=3, column=0, sticky='w', padx=5)
+        tk.Label(info_grid, text=f"{len(self.flow_mgr.flow_sequence)}개 액션", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=3, column=1, sticky='w')
         
         # 진행 상황
         progress_frame = tk.LabelFrame(
             content,
             text="📊 진행 상황",
             font=("맑은 고딕", 11, "bold"),
-            bg='white',
+            bg='#F0F0F0',
             padx=15,
             pady=15
         )
@@ -259,7 +260,7 @@ class ProjectRunner(tk.Frame):
             progress_frame,
             text="대기 중...",
             font=("맑은 고딕", 10),
-            bg='white'
+            bg='#F0F0F0'
         )
         self.progress_label.pack(pady=(0, 10))
         
@@ -275,7 +276,7 @@ class ProjectRunner(tk.Frame):
             text="",
             font=("맑은 고딕", 9),
             fg='gray',
-            bg='white'
+            bg='#F0F0F0'
         )
         self.status_label.pack(pady=(5, 0))
         
@@ -284,7 +285,7 @@ class ProjectRunner(tk.Frame):
             content,
             text="📝 실행 로그",
             font=("맑은 고딕", 11, "bold"),
-            bg='white',
+            bg='#F0F0F0',
             padx=15,
             pady=15
         )
@@ -472,7 +473,7 @@ class ProjectRunner(tk.Frame):
         """설정 창"""
         dialog = tk.Toplevel(self.parent)
         dialog.title("실행 설정")
-        dialog.geometry("450x720")
+        dialog.geometry("450x700")
         dialog.transient(self.parent)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -483,7 +484,7 @@ class ProjectRunner(tk.Frame):
             dialog,
             text="⚙️ 실행 설정",
             font=("맑은 고딕", 14, "bold"),
-            bg='white'
+            bg='#F0F0F0'
         ).pack(pady=15, fill='x')
         
         # 단축키 설정
@@ -491,7 +492,7 @@ class ProjectRunner(tk.Frame):
             dialog,
             text="⌨️ 단축키 설정",
             font=("맑은 고딕", 11, "bold"),
-            bg='white',
+            bg='#F0F0F0',
             fg='#2c3e50',
             padx=20,
             pady=15,
@@ -501,10 +502,10 @@ class ProjectRunner(tk.Frame):
         hotkey_frame.pack(fill='x', padx=20, pady=10)
 
         hotkeys = self.project_data.get('settings', {}).get('hotkeys', {
-            'start': 'f8',
-            'pause': 'f9',
-            'stop': 'f10',
-            'focus': 'f12'
+            'start': 'F8',
+            'pause': 'F9',
+            'stop': 'F10',
+            'focus': 'F12'
         })
 
         hotkey_entries = {}
@@ -556,10 +557,10 @@ class ProjectRunner(tk.Frame):
             
             tk.Label(
                 main_frame,
-                text="예: f1, f8, f11, enter, esc 등",
+                text="예: F1, F8, F11, Enter, Esc 등",
                 font=("맑은 고딕", 9),
                 fg='#7f8c8d',
-                bg='white'
+                bg='#F0F0F0'
             ).pack(anchor='w', pady=(0, 15))
             
             captured_key = [None]
@@ -671,7 +672,7 @@ class ProjectRunner(tk.Frame):
                 hotkey_frame,
                 text=f"{label}:",
                 font=("맑은 고딕", 10),
-                bg='white',
+                bg='#F0F0F0',
                 fg='#2c3e50'
             ).grid(row=idx, column=0, sticky='w', padx=(0, 10), pady=8)
             
@@ -721,10 +722,10 @@ class ProjectRunner(tk.Frame):
         
         tk.Label(
             hotkey_frame,
-            text="※ 예: f8, f9, f11, enter, ctrl+s 등",
+            text="※ 예: F8, F9, F11, enter, ctrl+s 등",
             font=("맑은 고딕", 8),
             fg='gray',
-            bg='white'
+            bg='#F0F0F0'
         ).grid(row=4, column=0, columnspan=3, pady=(10, 0), sticky='w')
         
         # 실행 모드
@@ -732,7 +733,7 @@ class ProjectRunner(tk.Frame):
             dialog,
             text="🎯 실행 모드",
             font=("맑은 고딕", 11, "bold"),
-            bg='white',
+            bg='#F0F0F0',
             fg='#2c3e50',
             padx=20,
             pady=15,
@@ -758,20 +759,20 @@ class ProjectRunner(tk.Frame):
                 variable=mode_var,
                 value=value,
                 font=("맑은 고딕", 9),
-                bg='white',
+                bg='#F0F0F0',
                 fg='#2c3e50',
                 selectcolor='white'
             ).pack(anchor='w', padx=10, pady=3)
         
         # 반복 횟수
-        repeat_frame = tk.Frame(mode_frame, bg='white')
+        repeat_frame = tk.Frame(mode_frame, bg='#F0F0F0')
         repeat_frame.pack(fill='x', padx=10, pady=(15, 0))
         
         tk.Label(
             repeat_frame,
             text="플로우 반복 횟수:",
             font=("맑은 고딕", 9),
-            bg='white',
+            bg='#F0F0F0',
             fg='#2c3e50'
         ).pack(side='left')
         
@@ -792,7 +793,7 @@ class ProjectRunner(tk.Frame):
             variable=excel_infinite_var,
             font=("맑은 고딕", 9, "bold"),
             fg='#e74c3c',
-            bg='white',
+            bg='#F0F0F0',
             selectcolor='white'
         )
         excel_infinite_check.pack(anchor='w', padx=10, pady=(15, 5))
@@ -802,7 +803,7 @@ class ProjectRunner(tk.Frame):
             text="※ 엑셀 모드에서만 적용됩니다",
             font=("맑은 고딕", 8),
             fg='gray',
-            bg='white'
+            bg='#F0F0F0'
         ).pack(anchor='w', padx=30, pady=(0, 10))
 
         def save_settings():
@@ -847,7 +848,7 @@ class ProjectRunner(tk.Frame):
             padx=30,
             pady=10,
             font=("맑은 고딕", 11, "bold")
-        ).pack(pady=20)
+        ).pack(pady=15)
 
 
     

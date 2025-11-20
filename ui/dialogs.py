@@ -50,7 +50,10 @@ class NewProjectDialog(tk.Toplevel):
         )
         self.name_entry.pack(fill='x', pady=(0, 15))
         self.name_entry.focus()
-        
+
+        # 글자 수 제한 (14자)
+        self.name_entry.bind('<KeyRelease>', self.on_name_change)
+
         # # 설명
         # tk.Label(
         #     main_frame,
@@ -94,15 +97,24 @@ class NewProjectDialog(tk.Toplevel):
         
         # Enter 키 바인딩
         self.name_entry.bind('<Return>', lambda e: self.on_create())
-    
+
+    def on_name_change(self, event=None):
+        """이름 입력 시 길이 제한 (14자)"""
+        MAX_NAME_LENGTH = 14
+        current_text = self.name_entry.get()
+
+        if len(current_text) > MAX_NAME_LENGTH:
+            # 14자까지만 유지
+            self.name_entry.delete(MAX_NAME_LENGTH, tk.END)
+
     def on_create(self):
         """생성 버튼 클릭"""
         name = self.name_entry.get().strip()
-        
+
         if not name:
             messagebox.showerror("오류", "프로젝트 이름을 입력하세요.")
             return
-        
+
         # 파일명으로 사용할 수 없는 문자 체크
         invalid_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
         if any(char in name for char in invalid_chars):
@@ -133,7 +145,7 @@ class NameInputDialog(tk.Toplevel):
     def __init__(self, parent, title="이름 입력", message="이름을 입력하세요:", initial_value=""):
         super().__init__(parent)
         self.title(title)
-        self.geometry("400x180")
+        self.geometry("300x180")
         self.resizable(False, False)
         
         self.result = None
@@ -229,7 +241,7 @@ class KeyInputDialog(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("키 입력")
-        self.geometry("350x280")
+        self.geometry("300x270")
         self.resizable(False, False)
         
         self.result = None
@@ -687,7 +699,7 @@ class ActionSelectDialog(tk.Toplevel):
     
         dialog = tk.Toplevel(self)
         dialog.title("좌표 클릭 설정")
-        dialog.geometry("400x350")
+        dialog.geometry("300x270")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -777,7 +789,7 @@ class ActionSelectDialog(tk.Toplevel):
         
         dialog = tk.Toplevel(self)
         dialog.title("이미지 클릭 설정")
-        dialog.geometry("400x200")
+        dialog.geometry("300x150")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -846,7 +858,7 @@ class ActionSelectDialog(tk.Toplevel):
         """텍스트 타이핑 설정"""
         dialog = tk.Toplevel(self)
         dialog.title("텍스트 입력")
-        dialog.geometry("400x200")
+        dialog.geometry("300x180")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
@@ -857,9 +869,9 @@ class ActionSelectDialog(tk.Toplevel):
         
         tk.Label(
             dialog,
-            text="입력할 텍스트:",
+            text="입력할 텍스트",
             font=("맑은 고딕", 11, "bold")
-        ).pack(pady=20)
+        ).pack(pady=15)
         
         text_entry = tk.Entry(dialog, font=("맑은 고딕", 11), width=40)
         text_entry.pack(padx=20, pady=10, fill='x')
@@ -931,7 +943,7 @@ class ActionSelectDialog(tk.Toplevel):
         
         dialog = tk.Toplevel(self)
         dialog.title("변수 타이핑 설정")
-        dialog.geometry("400x300")
+        dialog.geometry("300x280")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -1036,11 +1048,11 @@ class ActionSelectDialog(tk.Toplevel):
             dialog,
             text="대기 시간 설정",
             font=("맑은 고딕", 12, "bold")
-        ).pack(pady=15)
+        ).pack(pady=10)
         
         tk.Label(
             dialog,
-            text="대기 시간 (초):",
+            text="대기시간 입력 : 0.1 ~ 3600(초)",
             font=("맑은 고딕", 10)
         ).pack(pady=5)
         
@@ -1053,11 +1065,11 @@ class ActionSelectDialog(tk.Toplevel):
         def on_ok():
             try:
                 seconds = float(entry.get())
-                if 0.1 <= seconds <= 3000:
+                if 0.1 <= seconds <= 3600:
                     result[0] = {'seconds': seconds}
                     dialog.destroy()
                 else:
-                    self._show_error_dialog("0.1초 ~ 3000초 사이의 값을 입력하세요.")
+                    self._show_error_dialog("0.1초 ~ 3600초 사이의 값을 입력하세요.")
             except ValueError:
                 self._show_error_dialog("올바른 숫자를 입력하세요.")
         
@@ -1100,7 +1112,7 @@ class ActionSelectDialog(tk.Toplevel):
         
         dialog = tk.Toplevel(self)
         dialog.title("이미지 대기 설정")
-        dialog.geometry("400x250")
+        dialog.geometry("300x230")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -1180,7 +1192,7 @@ class ActionSelectDialog(tk.Toplevel):
         """스크린샷 설정"""
         dialog = tk.Toplevel(self)
         dialog.title("스크린샷")
-        dialog.geometry("400x200")
+        dialog.geometry("300x200")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
@@ -1206,7 +1218,7 @@ class ActionSelectDialog(tk.Toplevel):
             if not filename:
                 messagebox.showwarning("경고", "파일명을 입력하세요.", parent=dialog)
                 return
-            result[0] = {'filename': f"{filename}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"}
+            result[0] = {'filename': filename}  # 타임스탬프는 실행 시점에 추가
             dialog.destroy()
         
         def on_cancel():

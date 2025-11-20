@@ -52,11 +52,11 @@ class ProjectEditor(tk.Frame):
             font=("맑은 고딕", 14, "bold"),
             bg='#34495e',
             fg='white'
-        ).pack(side='left', padx=20, pady=15)
+        ).pack(side='left', padx=10, pady=15)
         
         # 헤더 버튼들
         btn_frame = tk.Frame(header, bg='#34495e')
-        btn_frame.pack(side='right', padx=20)
+        btn_frame.pack(side='right', padx=10)
         
         tk.Button(
             btn_frame,
@@ -70,19 +70,19 @@ class ProjectEditor(tk.Frame):
         ).pack(side='left', padx=5)
         
         # 메인 컨텐츠 (좌우 분할) - 비율 조정
-        main_paned = tk.PanedWindow(self, orient='horizontal', sashwidth=3, bg='#bdc3c7')
+        main_paned = tk.PanedWindow(self, orient='horizontal', bg='#bdc3c7', sashwidth=0)
         main_paned.pack(fill='both', expand=True)
-        
-        # 좌측: 리소스 관리 (컴팩트하게)
-        left_frame = tk.Frame(main_paned, width=280, bg='#ecf0f1')
-        main_paned.add(left_frame, minsize=250)
-        
+
+        # 좌측: 리소스 관리 (고정)
+        left_frame = tk.Frame(main_paned, width=175, bg='#ecf0f1')
+        main_paned.add(left_frame, minsize=175, width=175, stretch='never')
+
         self.setup_resource_panel(left_frame)
-        
+
         # 우측: 플로우 에디터 (넓게)
-        right_frame = tk.Frame(main_paned, bg='white')
-        main_paned.add(right_frame, minsize=600)
-        
+        right_frame = tk.Frame(main_paned, width=450, bg='white')
+        main_paned.add(right_frame, minsize=450)
+
         self.setup_flow_panel(right_frame)
 
     
@@ -117,10 +117,10 @@ class ProjectEditor(tk.Frame):
         """좌표 섹션"""
         section = tk.LabelFrame(
             parent,
-            text="📍 좌표 목록",
+            text="좌표 목록",
             font=("맑은 고딕", 11, "bold"),
             bg='#ecf0f1',
-            padx=10,
+            padx=5,
             pady=10
         )
         section.pack(fill='x', padx=10, pady=10)
@@ -145,10 +145,10 @@ class ProjectEditor(tk.Frame):
         """엑셀 섹션"""
         section = tk.LabelFrame(
             parent,
-            text="📊 엑셀 데이터",
+            text="엑셀 데이터",
             font=("맑은 고딕", 11, "bold"),
             bg='#ecf0f1',
-            padx=10,
+            padx=5,
             pady=10
         )
         section.pack(fill='x', padx=10, pady=10)
@@ -173,10 +173,10 @@ class ProjectEditor(tk.Frame):
         """이미지 섹션"""
         section = tk.LabelFrame(
             parent,
-            text="🖼️ 이미지 템플릿",
+            text="이미지 템플릿",
             font=("맑은 고딕", 11, "bold"),
             bg='#ecf0f1',
-            padx=10,
+            padx=5,
             pady=10
         )
         section.pack(fill='x', padx=10, pady=10)
@@ -201,7 +201,7 @@ class ProjectEditor(tk.Frame):
         """플로우 패널 구성"""
         # 제목
         title_frame = tk.Frame(parent, bg='white')
-        title_frame.pack(fill='x', padx=20, pady=10)
+        title_frame.pack(fill='x', padx=0, pady=10)
         
         tk.Label(
             title_frame,
@@ -212,7 +212,7 @@ class ProjectEditor(tk.Frame):
         
         # 플로우 리스트 (스크롤 가능)
         list_frame = tk.Frame(parent, bg='white')
-        list_frame.pack(fill='both', expand=True, padx=20, pady=10)
+        list_frame.pack(fill='both', expand=True, padx=0, pady=10)
         
         canvas = tk.Canvas(list_frame, bg='white', highlightthickness=0)
         scrollbar = tk.Scrollbar(list_frame, orient='vertical', command=canvas.yview)
@@ -258,7 +258,7 @@ class ProjectEditor(tk.Frame):
                 font=("맑은 고딕", 9),
                 fg='gray',
                 bg='#ecf0f1'
-            ).pack(pady=5)
+            ).pack(fill='x', pady=5)
             return
         
         for coord in self.coord_mgr.coordinates:
@@ -268,17 +268,20 @@ class ProjectEditor(tk.Frame):
         """좌표 아이템 생성"""
         item = tk.Frame(self.coord_list_frame, bg='white', relief='ridge', borderwidth=1)
         item.pack(fill='x', pady=2)
-        
+
         info_frame = tk.Frame(item, bg='white')
         info_frame.pack(side='left', fill='both', expand=True, padx=5, pady=5)
-        
+
+        # 제목 길이 제한 (최대 12자)
+        MAX_TITLE_LENGTH = 10
+        display_name = coord['name'] if len(coord['name']) <= MAX_TITLE_LENGTH else coord['name'][:MAX_TITLE_LENGTH] + '...'
+
         tk.Label(
             info_frame,
-            text=f"{coord['id']}. {coord['name']}",
+            text=f"{coord['id']}. {display_name}",
             font=("맑은 고딕", 9, "bold"),
             bg='white',
-            anchor='w',
-            wraplength=200  # 좁게 조정
+            anchor='w'
         ).pack(anchor='w', fill='x')
         
         tk.Label(
@@ -299,7 +302,7 @@ class ProjectEditor(tk.Frame):
             font=("맑은 고딕", 7),
             width=3,
             command=lambda: self.delete_coordinate(coord['id'])
-        ).pack()
+        ).pack(padx=(0,4))
 
     
     def refresh_excel_list(self):
@@ -314,7 +317,7 @@ class ProjectEditor(tk.Frame):
                 font=("맑은 고딕", 9),
                 fg='gray',
                 bg='#ecf0f1'
-            ).pack(pady=5)
+            ).pack(fill='x', pady=5)
             return
         
         for source in self.excel_mgr.excel_sources:
@@ -324,17 +327,20 @@ class ProjectEditor(tk.Frame):
         """엑셀 아이템 생성"""
         item = tk.Frame(self.excel_list_frame, bg='white', relief='ridge', borderwidth=1)
         item.pack(fill='x', pady=2)
-        
+
         info_frame = tk.Frame(item, bg='white')
         info_frame.pack(side='left', fill='both', expand=True, padx=5, pady=5)
-        
+
+        # 제목 길이 제한 (최대 12자)
+        MAX_TITLE_LENGTH = 10
+        display_name = source['name'] if len(source['name']) <= MAX_TITLE_LENGTH else source['name'][:MAX_TITLE_LENGTH] + '...'
+
         tk.Label(
             info_frame,
-            text=f"{source['id']}. {source['name']}",
+            text=f"{source['id']}. {display_name}",
             font=("맑은 고딕", 9, "bold"),
             bg='white',
-            anchor='w',
-            wraplength=200  # 좁게 조정
+            anchor='w'
         ).pack(anchor='w', fill='x')
         
         tk.Label(
@@ -355,7 +361,7 @@ class ProjectEditor(tk.Frame):
             font=("맑은 고딕", 7),
             width=3,
             command=lambda: self.delete_excel(source['id'])
-        ).pack()
+        ).pack(padx=(0,4))
     
     def refresh_image_list(self):
         """이미지 목록 새로고침"""
@@ -369,7 +375,7 @@ class ProjectEditor(tk.Frame):
                 font=("맑은 고딕", 9),
                 fg='gray',
                 bg='#ecf0f1'
-            ).pack(pady=5)
+            ).pack(fill='x', pady=5)
             return
         
         for image in self.image_mgr.images:
@@ -379,17 +385,20 @@ class ProjectEditor(tk.Frame):
         """이미지 아이템 생성"""
         item = tk.Frame(self.image_list_frame, bg='white', relief='ridge', borderwidth=1)
         item.pack(fill='x', pady=2)
-        
+
         info_frame = tk.Frame(item, bg='white')
         info_frame.pack(side='left', fill='both', expand=True, padx=5, pady=5)
-        
+
+        # 제목 길이 제한 (최대 12자)
+        MAX_TITLE_LENGTH = 10
+        display_name = image['name'] if len(image['name']) <= MAX_TITLE_LENGTH else image['name'][:MAX_TITLE_LENGTH] + '...'
+
         tk.Label(
             info_frame,
-            text=f"{image['id']}. {image['name']}",
+            text=f"{image['id']}. {display_name}",
             font=("맑은 고딕", 9, "bold"),
             bg='white',
-            anchor='w',
-            wraplength=200  # 좁게 조정
+            anchor='w'
         ).pack(anchor='w', fill='x')
         
         tk.Label(
@@ -410,7 +419,7 @@ class ProjectEditor(tk.Frame):
             font=("맑은 고딕", 7),
             width=3,
             command=lambda: self.delete_image(image['id'])
-        ).pack()
+        ).pack(padx=(0,4))
     
     def refresh_flow_list(self):
         """플로우 목록 새로고침"""
@@ -424,7 +433,7 @@ class ProjectEditor(tk.Frame):
                 font=("맑은 고딕", 10),
                 fg='gray',
                 bg='white'
-            ).pack(pady=20)
+            ).pack(fill='x', padx=5 ,pady=20)
             return
         
         for idx, action in enumerate(self.flow_mgr.flow_sequence):
@@ -433,18 +442,21 @@ class ProjectEditor(tk.Frame):
     def create_flow_item(self, idx, action):
         """플로우 아이템 생성 (넓게)"""
         item = tk.Frame(self.flow_list_frame, bg='#ecf0f1', relief='raised', borderwidth=1)
-        item.pack(fill='x', pady=3, padx=10)
-        
+        item.pack(fill='x', pady=3, expand=True, padx=10)
+
+        # 액션 타입별 색상 가져오기
+        action_color = self.get_action_color(action.get('type', ''))
+
         # 번호
         tk.Label(
             item,
             text=f"{idx+1}",
             font=("맑은 고딕", 11, "bold"),
-            bg='#3498db',
+            bg=action_color,
             fg='white',
-            width=4,
-            height=2
-        ).pack(side='left', padx=(8, 15), pady=8)
+            width=3,
+            height=1
+        ).pack(side='left', padx=(8,5), pady=8)
         
         # 액션 설명
         display_text = self.flow_mgr.get_action_display_text(
@@ -459,7 +471,7 @@ class ProjectEditor(tk.Frame):
             anchor='w',
             justify='left'
         )
-        text_label.pack(side='left', fill='both', expand=True, padx=10, pady=8)
+        text_label.pack(side='left', fill='both', expand=True, padx=5, pady=8)
         
         # 버튼
         btn_frame = tk.Frame(item, bg='#ecf0f1')
@@ -499,7 +511,7 @@ class ProjectEditor(tk.Frame):
         """좌표 추가 다이얼로그"""
         dialog = tk.Toplevel(self.parent)
         dialog.title("좌표 추가")
-        dialog.geometry("350x180")
+        dialog.geometry("300x200")
         dialog.transient(self.parent)
         dialog.grab_set()
         dialog.attributes('-topmost', True)  # 추가
@@ -526,8 +538,8 @@ class ProjectEditor(tk.Frame):
         def start_capture():
             dialog.destroy()
             self.capture_coordinate()
-        
-        tk.Button(
+
+        start_btn = tk.Button(
             dialog,
             text="시작",
             font=("맑은 고딕", 10),
@@ -536,7 +548,12 @@ class ProjectEditor(tk.Frame):
             padx=30,
             pady=8,
             command=start_capture
-        ).pack(pady=15)
+        )
+        start_btn.pack(pady=15)
+
+        # 스페이스바와 엔터키로 시작 가능
+        dialog.bind('<space>', lambda e: start_capture())
+        dialog.bind('<Return>', lambda e: start_capture())
 
         center_window_on_parent(dialog, self.parent)  # 이미 아이콘 설정 포함
         dialog.lift()
@@ -610,7 +627,7 @@ class ProjectEditor(tk.Frame):
         """좌표 이름 입력 다이얼로그"""
         dialog = tk.Toplevel(self.parent)
         dialog.title("좌표 이름 입력")
-        dialog.geometry("350x200")
+        dialog.geometry("300x180")
         dialog.transient(self.parent)
         dialog.grab_set()
         dialog.attributes('-topmost', True)  # 추가
@@ -619,20 +636,20 @@ class ProjectEditor(tk.Frame):
             text=f"좌표: ({x}, {y})",
             font=("맑은 고딕", 10, "bold"),
             fg='#27ae60'
-        ).pack(pady=15)
+        ).pack(pady=10)
         
         tk.Label(
             dialog,
             text="이름:",
             font=("맑은 고딕", 10)
-        ).pack(anchor='w', padx=30, pady=(10, 5))
+        ).pack(anchor='w', padx=30, pady=(0,5))
         
         name_entry = tk.Entry(
             dialog,
             font=("맑은 고딕", 11),
             width=30
         )
-        name_entry.pack(padx=30, pady=(0, 15))
+        name_entry.pack(padx=30, pady=(0, 10))
         name_entry.focus()
         
         def save_coord():
@@ -650,7 +667,7 @@ class ProjectEditor(tk.Frame):
             dialog.destroy()
         
         btn_frame = tk.Frame(dialog)
-        btn_frame.pack(pady=15)
+        btn_frame.pack(pady=10)
         
         tk.Button(
             btn_frame,
@@ -796,7 +813,7 @@ class ProjectEditor(tk.Frame):
         """칼럼 선택 다이얼로그 (개선됨)"""
         dialog = tk.Toplevel(self.parent)
         dialog.title("칼럼 선택")
-        dialog.geometry("400x550")
+        dialog.geometry("300x500")
         dialog.transient(self.parent)
         dialog.grab_set()
         
@@ -847,7 +864,7 @@ class ProjectEditor(tk.Frame):
         
         # 체크박스 리스트
         list_frame = tk.Frame(dialog)
-        list_frame.pack(fill='both', expand=True, padx=20, pady=10)
+        list_frame.pack(fill='both', expand=True, padx=0, pady=10)
         
         canvas = tk.Canvas(list_frame, bg='white', highlightthickness=1, highlightbackground='#bdc3c7')
         scrollbar = tk.Scrollbar(list_frame, orient='vertical', command=canvas.yview)
@@ -1046,9 +1063,6 @@ class ProjectEditor(tk.Frame):
         else:
             messagebox.showerror("오류", "프로젝트를 저장할 수 없습니다.")
     
-    def test_flow(self):
-        """플로우 테스트"""
-        messagebox.showinfo("테스트", "플로우 테스트 기능은 추후 구현 예정입니다.")
     
     def finish_editing(self):
         """편집 완료"""

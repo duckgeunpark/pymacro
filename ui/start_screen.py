@@ -35,14 +35,14 @@ class StartScreen(tk.Frame):
         title_label.pack(pady=20)
         
         # 버튼 섹션 (먼저 pack - 맨 아래 고정) ⭐
-        button_frame = tk.Frame(self, bg='white')
-        button_frame.pack(side='bottom', fill='x', padx=40, pady=(0, 30))
+        button_frame = tk.Frame(self, bg='#F0F0F0')
+        button_frame.pack(side='bottom', fill='x', padx=20, pady=(0, 20))
         
         # 새 프로젝트 버튼
         new_btn = tk.Button(
             button_frame,
             text="새 프로젝트 만들기",
-            font=("맑은 고딕", 12),
+            font=("맑은 고딕", 14, "bold"),
             bg='#3498db',
             fg='white',
             padx=30,
@@ -56,7 +56,7 @@ class StartScreen(tk.Frame):
         open_btn = tk.Button(
             button_frame,
             text="프로젝트 불러오기",
-            font=("맑은 고딕", 12),
+            font=("맑은 고딕", 14, "bold"),
             bg='#2ecc71',
             fg='white',
             padx=30,
@@ -68,7 +68,7 @@ class StartScreen(tk.Frame):
         
         # 메인 컨텐츠 (나머지 공간 차지) ⭐
         content_frame = tk.Frame(self, bg='white')
-        content_frame.pack(fill='both', expand=True, padx=40, pady=(30, 20))
+        content_frame.pack(fill='both', expand=True, padx=20, pady=(30, 20))
         
         # 최근 프로젝트 섹션
         recent_label = tk.Label(
@@ -77,7 +77,7 @@ class StartScreen(tk.Frame):
             font=("맑은 고딕", 14, "bold"),
             bg='white'
         )
-        recent_label.pack(anchor='w', pady=(0, 10))
+        recent_label.pack(fill='x', anchor='w', padx=20, pady=10)
         
         # 최근 프로젝트 리스트 (스크롤 추가) ⭐
         self.setup_scrollable_projects(content_frame)
@@ -191,12 +191,12 @@ class StartScreen(tk.Frame):
             relief='raised',
             borderwidth=1
         )
-        card.pack(fill='both', expand=True, pady=5, padx=0)  # ⭐ padx=0으로 변경
+        card.pack(fill='both', expand=True, padx=15,pady=(0,10))  # ⭐ padx=0으로 변경
         
         # 좌측 정보 영역
         info_frame = tk.Frame(card, bg='#ecf0f1')
-        info_frame.pack(side='left', fill='both', expand=True, padx=15, pady=10)
-        
+        info_frame.pack(side='left', fill='both', expand=True, padx=(20,30), pady=10)
+
         # 프로젝트 이름
         name_label = tk.Label(
             info_frame,
@@ -206,7 +206,7 @@ class StartScreen(tk.Frame):
             anchor='w'
         )
         name_label.pack(anchor='w')
-        
+
         # 설명
         desc_label = tk.Label(
             info_frame,
@@ -217,7 +217,7 @@ class StartScreen(tk.Frame):
             anchor='w'
         )
         desc_label.pack(anchor='w', pady=(2, 0))
-        
+
         # 수정 시간
         time_label = tk.Label(
             info_frame,
@@ -228,11 +228,11 @@ class StartScreen(tk.Frame):
             anchor='w'
         )
         time_label.pack(anchor='w', pady=(2, 0))
-        
+
         # 우측 버튼 영역
         button_frame = tk.Frame(card, bg='#ecf0f1')
-        button_frame.pack(side='right', padx=10, pady=10)
-        
+        button_frame.pack(side='right', padx=(30,20), pady=10)
+
         # 열기 버튼
         open_btn = tk.Button(
             button_frame,

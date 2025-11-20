@@ -5,14 +5,13 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('resources', 'resources')],
-    hiddenimports=[],
+    datas=[('resources', 'resources'), ('ui', 'ui'), ('core', 'core')],
+    hiddenimports=['PIL._tkinter_finder', 'openpyxl', 'pandas', 'pynput', 'pyperclip'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
-    optimize=0,
 )
 pyz = PYZ(a.pure)
 
@@ -35,5 +34,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    version='version_info.txt',
     icon=['resources\\icon.ico'],
 )
