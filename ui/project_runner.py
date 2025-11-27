@@ -59,14 +59,9 @@ class ProjectRunner(tk.Frame):
         self.setup_ui()
         
     def setup_hotkeys(self):
-        """단축키 설정"""
-        settings = self.project_data.get('settings', {})
-        hotkeys = settings.get('hotkeys', {
-            'start': 'f8',
-            'pause': 'f9',
-            'stop': 'f10',
-            'focus': 'f12'
-        })
+        """단축키 설정 (전역 설정 사용)"""
+        from core.settings_manager import SettingsManager
+        hotkeys = SettingsManager.get_hotkeys()
         
         # 단축키를 pynput 형식으로 변환
         self.hotkey_map = {}
@@ -167,7 +162,7 @@ class ProjectRunner(tk.Frame):
         
         tk.Button(
             btn_frame,
-            text="설정",
+            text="실행 설정",
             font=("맑은 고딕", 10),
             bg='#34495e',
             fg='white',
@@ -202,7 +197,9 @@ class ProjectRunner(tk.Frame):
         )
         hotkey_frame.pack(fill='x', pady=(0, 10))
 
-        hotkeys = self.project_data.get('settings', {}).get('hotkeys', {})
+        # 전역 설정에서 단축키 가져오기
+        from core.settings_manager import SettingsManager
+        hotkeys = SettingsManager.get_hotkeys()
         hotkey_text = f"시작: {hotkeys.get('start', 'F9').upper()}  |  " \
                     f"일시정지: {hotkeys.get('pause', 'F10').upper()}  |  " \
                     f"중지: {hotkeys.get('stop', 'F11').upper()}  |  " \
@@ -233,16 +230,138 @@ class ProjectRunner(tk.Frame):
         tk.Label(info_grid, text="• 좌표:", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=0, column=0, sticky='w', padx=5)
         tk.Label(info_grid, text=f"{len(self.coord_mgr.coordinates)}개", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=0, column=1, sticky='w')
         
-        tk.Label(info_grid, text="• 엑셀:", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=1, column=0, sticky='w', padx=5)
-        excel_info = f"{len(self.excel_mgr.excel_sources)}개"
+        # 엑셀 정보 표시 (플로우에 사용된 순서대로)
         if self.excel_mgr.excel_sources:
-            excel_info += f" ({self.excel_mgr.excel_sources[0]['row_count']} rows)"
-        tk.Label(info_grid, text=excel_info, font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=1, column=1, sticky='w')
-        
-        tk.Label(info_grid, text="• 이미지:", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=2, column=0, sticky='w', padx=5)
+            # 각 엑셀별로 사용하는 컬럼 추출
+            import re
+            excel_usage = {}  # {excel_id: set(columns)}
+            excel_order = []  # 플로우에서 사용된 순서대로 excel_id
+
+            for action in self.flow_mgr.flow_sequence:
+                action_type = action.get('type', '')
+
+                # type_variable 액션에서 엑셀 컬럼 추출
+                if action_type == 'type_variable':
+                    params = action.get('params', {})
+                    if params.get('var_type') == 'excel':
+                        var_name = params.get('var_name', '')
+                        excel_id = params.get('excel_id', 1)  # 기본값 1
+                        if var_name:
+                            if excel_id not in excel_usage:
+                                excel_usage[excel_id] = set()
+                                excel_order.append(excel_id)
+                            excel_usage[excel_id].add(var_name)
+
+                # 다른 액션에서 {{엑셀ID_컬럼명}} 패턴 찾기
+                elif action_type in ['type', 'click', 'hotkey', 'wait']:
+                    value = action.get('value', '')
+                    if isinstance(value, str) and '{{엑셀' in value:
+                        matches = re.findall(r'\{\{엑셀(\d+)_([^}]+)\}\}', value)
+                        for excel_id_str, col_name in matches:
+                            excel_id = int(excel_id_str)
+                            if excel_id not in excel_usage:
+                                excel_usage[excel_id] = set()
+                                excel_order.append(excel_id)
+                            excel_usage[excel_id].add(col_name)
+
+            # 플로우에 사용된 엑셀만 순서대로 표시
+            if excel_usage:
+                tk.Label(info_grid, text="엑셀:", font=("맑은 고딕", 10, "bold"), bg='#F0F0F0').grid(row=1, column=0, sticky='nw', padx=5, pady=5)
+
+                excel_container = tk.Frame(info_grid, bg='#F0F0F0')
+                excel_container.grid(row=1, column=1, columnspan=2, sticky='w', pady=5)
+
+                for order_idx, excel_id in enumerate(excel_order):
+                    # excel_id로 source 찾기
+                    source = None
+                    source_name = f"엑셀{excel_id}"
+                    for src in self.excel_mgr.excel_sources:
+                        if src.get('id', 0) == excel_id:
+                            source = src
+                            source_name = src['name']
+                            break
+
+                    # 각 엑셀을 한 줄로 표시
+                    row_frame = tk.Frame(excel_container, bg='#F0F0F0')
+                    row_frame.pack(fill='x', pady=2)
+
+                    # 순번
+                    tk.Label(
+                        row_frame,
+                        text=f"{order_idx + 1}.",
+                        font=("맑은 고딕", 9),
+                        bg='#F0F0F0',
+                        width=2
+                    ).pack(side='left')
+
+                    # 엑셀 경로 표시 (자동 선택 vs 수동 선택 구분)
+                    if source and source.get('auto_latest', False):
+                        # 자동 파일 선택: [디렉토리, 접두사, 모드] 형식
+                        auto_dir = source.get('auto_directory', '')
+                        auto_prefix = source.get('auto_prefix', '')
+                        auto_mode = source.get('auto_mode', 'modified')
+                        mode_icon = "📅" if auto_mode == "modified" else "🔢"
+                        prefix_text = f", {auto_prefix}" if auto_prefix else ""
+                        excel_path = f"[{auto_dir}{prefix_text}] {mode_icon}"
+                        path_color = '#2980b9'  # 파란색으로 자동 선택 표시
+                    elif source:
+                        # 수동 파일 선택: 전체 경로
+                        excel_path = f"[{source.get('filepath', 'N/A')}]"
+                        path_color = '#2c3e50'  # 기본 색상
+                    else:
+                        excel_path = '[N/A]'
+                        path_color = '#7f8c8d'
+
+                    # 사용 컬럼
+                    used_columns = sorted(list(excel_usage.get(excel_id, set())))
+                    col_text = ', '.join(used_columns) if used_columns else ''
+
+                    # 경로 표시
+                    path_label = tk.Label(
+                        row_frame,
+                        text=excel_path,
+                        font=("맑은 고딕", 9),
+                        bg='#F0F0F0',
+                        fg=path_color,
+                        anchor='w'
+                    )
+                    path_label.pack(side='left', padx=(0, 5))
+
+                    # 사용 컬럼 표시
+                    if col_text:
+                        tk.Label(
+                            row_frame,
+                            text=f"({col_text})",
+                            font=("맑은 고딕", 9),
+                            bg='#F0F0F0',
+                            fg='#7f8c8d',
+                            anchor='w'
+                        ).pack(side='left', fill='x', expand=True)
+
+                    # 설정 버튼
+                    if source:
+                        tk.Button(
+                            row_frame,
+                            text="⚙️",
+                            font=("맑은 고딕", 9),
+                            bg='#3498db',
+                            fg='white',
+                            cursor='hand2',
+                            padx=5,
+                            pady=2,
+                            command=lambda s=source: self.show_excel_config(s)
+                        ).pack(side='right')
+            else:
+                tk.Label(info_grid, text="엑셀:", font=("맑은 고딕", 10, "bold"), bg='#F0F0F0').grid(row=1, column=0, sticky='w', padx=5)
+                tk.Label(info_grid, text="사용 안 함", font=("맑은 고딕", 9), bg='#F0F0F0').grid(row=1, column=1, sticky='w')
+        else:
+            tk.Label(info_grid, text="엑셀:", font=("맑은 고딕", 10, "bold"), bg='#F0F0F0').grid(row=1, column=0, sticky='w', padx=5)
+            tk.Label(info_grid, text="없음", font=("맑은 고딕", 9), bg='#F0F0F0').grid(row=1, column=1, sticky='w')
+
+        tk.Label(info_grid, text="이미지:", font=("맑은 고딕", 10, "bold"), bg='#F0F0F0').grid(row=2, column=0, sticky='w', padx=5)
         tk.Label(info_grid, text=f"{len(self.image_mgr.images)}개", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=2, column=1, sticky='w')
-        
-        tk.Label(info_grid, text="• 플로우:", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=3, column=0, sticky='w', padx=5)
+
+        tk.Label(info_grid, text="플로우:", font=("맑은 고딕", 10, "bold"), bg='#F0F0F0').grid(row=3, column=0, sticky='w', padx=5)
         tk.Label(info_grid, text=f"{len(self.flow_mgr.flow_sequence)}개 액션", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=3, column=1, sticky='w')
         
         # 진행 상황
@@ -468,12 +587,70 @@ class ProjectRunner(tk.Frame):
         
         editor = ProjectEditor(self.parent, self.app, self.project_data, self.filepath)
         editor.pack(fill='both', expand=True)
-            
+
+    def show_excel_config(self, source):
+        """특정 엑셀 소스의 자동 최신 파일 및 데이터 처리 옵션 설정"""
+        from ui.auto_latest_dialog import AutoLatestFileDialog
+        from core.project_manager import ProjectManager
+        import os
+
+        # 현재 설정값 가져오기
+        current_dir = source.get('auto_directory', '')
+        if not current_dir and source.get('filepath'):
+            # 기존 파일 경로에서 디렉토리 추출
+            current_dir = os.path.dirname(source.get('filepath', ''))
+
+        # 다이얼로그 생성 (source를 전달하여 데이터 처리 옵션 표시)
+        dialog = AutoLatestFileDialog(self.parent, default_directory=current_dir, source=source)
+
+        # 현재 설정값으로 초기화
+        if source.get('auto_latest', False):
+            dialog.auto_var.set(True)
+            dialog.toggle_inputs()
+            dialog.dir_entry.delete(0, tk.END)
+            dialog.dir_entry.insert(0, source.get('auto_directory', ''))
+            dialog.prefix_entry.delete(0, tk.END)
+            dialog.prefix_entry.insert(0, source.get('auto_prefix', ''))
+            dialog.mode_var.set(source.get('auto_mode', 'modified'))
+
+        # 다이얼로그 대기
+        self.wait_window(dialog)
+
+        # 취소하지 않았으면 설정 저장
+        if not dialog.cancelled:
+            # 소스 데이터 업데이트 (AutoLatestFileDialog에서 이미 source 객체를 수정함)
+            source['auto_latest'] = dialog.auto_latest
+            source['auto_directory'] = dialog.auto_directory
+            source['auto_prefix'] = dialog.auto_prefix
+            source['auto_mode'] = dialog.auto_mode
+
+            # project_data의 excel_sources에서 해당 소스 업데이트
+            excel_sources = self.project_data.get('excel_sources', [])
+            for i, src in enumerate(excel_sources):
+                if src.get('id') == source.get('id'):
+                    excel_sources[i] = source
+                    break
+
+            self.project_data['excel_sources'] = excel_sources
+
+            # 프로젝트 파일 저장
+            ProjectManager.save_project(self.filepath, self.project_data)
+
+            # ExcelManager 갱신
+            self.excel_mgr.load_from_list(excel_sources)
+
+            # UI 전체 갱신
+            for widget in self.winfo_children():
+                widget.destroy()
+            self.setup_ui()
+
+            messagebox.showinfo("완료", f"'{source.get('name', '엑셀')}' 설정이 저장되었습니다.", parent=self.parent)
+
     def show_settings(self):
         """설정 창"""
         dialog = tk.Toplevel(self.parent)
         dialog.title("실행 설정")
-        dialog.geometry("450x700")
+        dialog.geometry("450x500")
         dialog.transient(self.parent)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -487,247 +664,19 @@ class ProjectRunner(tk.Frame):
             bg='#F0F0F0'
         ).pack(pady=15, fill='x')
         
-        # 단축키 설정
-        hotkey_frame = tk.LabelFrame(
-            dialog,
-            text="⌨️ 단축키 설정",
-            font=("맑은 고딕", 11, "bold"),
-            bg='#F0F0F0',
-            fg='#2c3e50',
-            padx=20,
-            pady=15,
-            relief='solid',
-            borderwidth=1
-        )
-        hotkey_frame.pack(fill='x', padx=20, pady=10)
+        # 단축키 설정 안내
+        info_frame = tk.Frame(dialog, bg='#e8f4f8', padx=15, pady=10)
+        info_frame.pack(fill='x', padx=20, pady=(10, 5))
 
-        hotkeys = self.project_data.get('settings', {}).get('hotkeys', {
-            'start': 'F8',
-            'pause': 'F9',
-            'stop': 'F10',
-            'focus': 'F12'
-        })
-
-        hotkey_entries = {}
-        
-        # 키 입력 다이얼로그 함수
-        def show_key_input_dialog(action_name):
-            """키 입력 감지 다이얼로그 표시"""
-            key_dialog = tk.Toplevel(dialog)
-            key_dialog.title("키 입력")
-            key_dialog.geometry("350x280")
-            key_dialog.resizable(False, False)
-            key_dialog.transient(dialog)
-            key_dialog.grab_set()
-            key_dialog.attributes('-topmost', True)
-            
-            set_dialog_icon(key_dialog)
-            
-            result = [None]
-            
-            main_frame = tk.Frame(key_dialog, padx=20, pady=20, bg='white')
-            main_frame.pack(fill='both', expand=True)
-            
-            tk.Label(
-                main_frame,
-                text="입력할 키를 누르세요",
-                font=("맑은 고딕", 12, "bold"),
-                bg='white'
-            ).pack(pady=(0, 20))
-            
-            tk.Label(
-                main_frame,
-                text="입력된 키:",
-                font=("맑은 고딕", 11),
-                bg='white'
-            ).pack(anchor='w', pady=(0, 5))
-            
-            key_display = tk.Label(
-                main_frame,
-                text="(키를 누르세요...)",
-                font=("맑은 고딕", 14, "bold"),
-                bg='#ecf0f1',
-                fg='#3498db',
-                padx=20,
-                pady=15,
-                relief='sunken',
-                borderwidth=2
-            )
-            key_display.pack(fill='x', pady=(0, 20))
-            
-            tk.Label(
-                main_frame,
-                text="예: F1, F8, F11, Enter, Esc 등",
-                font=("맑은 고딕", 9),
-                fg='#7f8c8d',
-                bg='#F0F0F0'
-            ).pack(anchor='w', pady=(0, 15))
-            
-            captured_key = [None]
-            
-            def on_key_press(event):
-                """키 입력 감지"""
-                key_mapping = {
-                    'Return': 'enter',
-                    'Tab': 'tab',
-                    'Escape': 'esc',
-                    'space': 'space',
-                    'BackSpace': 'backspace',
-                    'Delete': 'delete',
-                    'Up': 'up',
-                    'Down': 'down',
-                    'Left': 'left',
-                    'Right': 'right',
-                    'Home': 'home',
-                    'End': 'end',
-                    'Prior': 'pageup',
-                    'Next': 'pagedown',
-                    'Insert': 'insert',
-                    'Pause': 'pause',
-                    'Print': 'print',
-                }
-                
-                key_name = event.keysym.lower()
-                
-                if event.keysym in key_mapping:
-                    key_name = key_mapping[event.keysym]
-                
-                if event.keysym.startswith('F') and event.keysym[1:].isdigit():
-                    key_name = event.keysym.lower()
-                
-                if key_name in ['shift_l', 'shift_r', 'control_l', 'control_r', 'alt_l', 'alt_r', 'meta_l', 'meta_r']:
-                    return
-                
-                modifiers = []
-                if event.state & 0x0004:
-                    modifiers.append('ctrl')
-                if event.state & 0x0001:
-                    modifiers.append('shift')
-                
-                if modifiers:
-                    captured_key[0] = '+'.join(modifiers + [key_name])
-                else:
-                    captured_key[0] = key_name
-                
-                key_display.config(text=captured_key[0], fg='#27ae60')
-                confirm_btn.config(state='normal')
-            
-            def on_ok():
-                if captured_key[0]:
-                    result[0] = captured_key[0]
-                    key_dialog.destroy()
-            
-            def on_cancel():
-                key_dialog.destroy()
-            
-            btn_frame = tk.Frame(main_frame, bg='white')
-            btn_frame.pack(fill='x')
-            
-            confirm_btn = tk.Button(
-                btn_frame,
-                text="확인",
-                font=("맑은 고딕", 10),
-                bg='#27ae60',
-                fg='white',
-                padx=20,
-                pady=8,
-                command=on_ok,
-                state='disabled'
-            )
-            confirm_btn.pack(side='left', expand=True, padx=(0, 5))
-            
-            tk.Button(
-                btn_frame,
-                text="취소",
-                font=("맑은 고딕", 10),
-                bg='#95a5a6',
-                fg='white',
-                padx=20,
-                pady=8,
-                command=on_cancel
-            ).pack(side='left', expand=True, padx=(5, 0))
-            
-            key_dialog.bind('<KeyPress>', on_key_press)
-            key_dialog.focus_force()
-            
-            # 중앙 배치
-            center_window_on_parent(key_dialog, dialog)
-            
-            key_dialog.lift()
-            key_dialog.focus_force()
-            
-            dialog.wait_window(key_dialog)
-            return result[0]
-        
-    
-        # 단축키 입력 필드 생성 (Grid 레이아웃)
-        for idx, (action, label) in enumerate([
-            ('start', '시작'),
-            ('pause', '일시정지'),
-            ('stop', '중지'),
-            ('focus', '맨 앞으로')
-        ]):
-            # 라벨
-            tk.Label(
-                hotkey_frame,
-                text=f"{label}:",
-                font=("맑은 고딕", 10),
-                bg='#F0F0F0',
-                fg='#2c3e50'
-            ).grid(row=idx, column=0, sticky='w', padx=(0, 10), pady=8)
-            
-            # Entry (클릭 이벤트 추가)
-            entry = tk.Entry(
-                hotkey_frame,
-                font=("맑은 고딕", 10),
-                width=15,
-                relief='solid',
-                borderwidth=1
-            )
-            entry.insert(0, hotkeys.get(action, ''))
-            entry.grid(row=idx, column=1, padx=5, pady=8, sticky='ew', columnspan=2)
-            hotkey_entries[action] = entry
-            
-            # Entry 클릭 이벤트 (감지 다이얼로그 표시)
-            def make_on_click(act):
-                def on_click(event):
-                    # 이미 다이얼로그가 열려있으면 무시
-                    if hasattr(on_click, 'dialog_open') and on_click.dialog_open:
-                        return
-                    
-                    entry_widget = event.widget
-                    entry_widget.delete(0, tk.END)
-                    entry_widget.config(state='disabled', fg='gray')
-                    
-                    on_click.dialog_open = True  # 플래그 설정
-                    detected_key = show_key_input_dialog(act)
-                    on_click.dialog_open = False  # 플래그 해제
-                    
-                    entry_widget.config(state='normal', fg='black')
-                    if detected_key:
-                        entry_widget.delete(0, tk.END)
-                        entry_widget.insert(0, detected_key)
-                
-                on_click.dialog_open = False  # 초기값
-                return on_click
-            
-            entry.bind('<Button-1>', make_on_click(action))
-
-        # Grid 열 가중치 설정
-        hotkey_frame.grid_columnconfigure(1, minsize=200)
-        
-        # Grid 열 가중치 설정
-        hotkey_frame.grid_columnconfigure(1, minsize=150)
-        hotkey_frame.grid_columnconfigure(2, minsize=80)
-        
         tk.Label(
-            hotkey_frame,
-            text="※ 예: F8, F9, F11, enter, ctrl+s 등",
-            font=("맑은 고딕", 8),
-            fg='gray',
-            bg='#F0F0F0'
-        ).grid(row=4, column=0, columnspan=3, pady=(10, 0), sticky='w')
-        
+            info_frame,
+            text="ℹ️ 단축키 설정은 홈 화면의 '단축키 설정' 버튼에서 변경할 수 있습니다.\n모든 매크로에 동일한 단축키가 적용됩니다.",
+            font=("맑은 고딕", 9),
+            bg='#e8f4f8',
+            fg='#2980b9',
+            justify='left'
+        ).pack()
+
         # 실행 모드
         mode_frame = tk.LabelFrame(
             dialog,
@@ -807,16 +756,9 @@ class ProjectRunner(tk.Frame):
         ).pack(anchor='w', padx=30, pady=(0, 10))
 
         def save_settings():
-            # 단축키 저장
+            # 실행 설정 저장
             if 'settings' not in self.project_data:
                 self.project_data['settings'] = {}
-            if 'hotkeys' not in self.project_data['settings']:
-                self.project_data['settings']['hotkeys'] = {}
-            
-            for action, entry in hotkey_entries.items():
-                self.project_data['settings']['hotkeys'][action] = entry.get().strip()
-            
-            # 실행 설정 저장
             if 'execution' not in self.project_data['settings']:
                 self.project_data['settings']['execution'] = {}
             

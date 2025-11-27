@@ -1,0 +1,8 @@
+{
+  "hotkeys": {
+    "start": "f9",
+    "pause": "f10",
+    "stop": "f11",
+    "focus": "f12"
+  }
+}

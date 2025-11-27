@@ -46,12 +46,6 @@ class ProjectManager:
             'images': [],
             'flow_sequence': [],
             'settings': {
-                'hotkeys': {
-                    'start': 'F9',
-                    'pause': 'F10',
-                    'stop': 'F11',
-                    'focus': 'F12' 
-                },
                 'execution': {
                     'mode': 'flow_repeat',  # excel_loop, flow_repeat, infinite
                     'repeat_count': 1,
@@ -66,3 +60,31 @@ class ProjectManager:
             'created_at': datetime.now().isoformat(),
             'modified_at': datetime.now().isoformat()
         }
+
+    @staticmethod
+    def get_project_list():
+        """프로젝트 목록 반환"""
+        projects = []
+
+        if not os.path.exists('projects'):
+            return projects
+
+        json_files = [f for f in os.listdir('projects') if f.endswith('.json') and not f.endswith('.hidden')]
+
+        for filename in json_files:
+            filepath = os.path.join('projects', filename)
+            try:
+                project_data = ProjectManager.load_project(filepath)
+                if project_data:
+                    projects.append({
+                        'name': project_data.get('name', 'Unknown'),
+                        'filepath': filepath,
+                        'modified_at': project_data.get('modified_at', '')
+                    })
+            except Exception as e:
+                print(f"프로젝트 로드 오류 ({filename}): {e}")
+
+        # 수정 시간 순 정렬 (최신순)
+        projects.sort(key=lambda x: x.get('modified_at', ''), reverse=True)
+
+        return projects

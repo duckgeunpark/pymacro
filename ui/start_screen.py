@@ -45,39 +45,53 @@ class StartScreen(tk.Frame):
             font=("맑은 고딕", 14, "bold"),
             bg='#3498db',
             fg='white',
-            padx=30,
-            pady=15,
             cursor='hand2',
-            command=self.create_new_project
+            command=self.create_new_project,
+            height=2
         )
         new_btn.pack(side='left', expand=True, fill='both', padx=(0, 10))
-        
-        # 프로젝트 열기 버튼
-        open_btn = tk.Button(
+
+        # 체인 실행 버튼
+        chain_btn = tk.Button(
             button_frame,
-            text="프로젝트 불러오기",
+            text="🔗 체인 실행",
             font=("맑은 고딕", 14, "bold"),
-            bg='#2ecc71',
+            bg='#9b59b6',
             fg='white',
-            padx=30,
-            pady=15,
             cursor='hand2',
-            command=self.load_project
+            command=self.start_chain_execution,
+            height=2
         )
-        open_btn.pack(side='left', expand=True, fill='both', padx=(10, 0))
+        chain_btn.pack(side='left', expand=True, fill='both', padx=(10, 0))
         
         # 메인 컨텐츠 (나머지 공간 차지) ⭐
         content_frame = tk.Frame(self, bg='white')
         content_frame.pack(fill='both', expand=True, padx=20, pady=(30, 20))
         
-        # 최근 프로젝트 섹션
+        # 최근 프로젝트 섹션 헤더
+        header_frame = tk.Frame(content_frame, bg='white')
+        header_frame.pack(fill='x', padx=20, pady=10)
+
         recent_label = tk.Label(
-            content_frame,
+            header_frame,
             text="최근 프로젝트",
             font=("맑은 고딕", 14, "bold"),
             bg='white'
         )
-        recent_label.pack(fill='x', anchor='w', padx=20, pady=10)
+        recent_label.pack(side='left')
+
+        # 단축키 설정 버튼
+        tk.Button(
+            header_frame,
+            text="⌨️ 단축키 설정",
+            font=("맑은 고딕", 10),
+            bg='#95a5a6',
+            fg='white',
+            cursor='hand2',
+            command=self.show_hotkey_settings,
+            padx=15,
+            pady=5
+        ).pack(side='right')
         
         # 최근 프로젝트 리스트 (스크롤 추가) ⭐
         self.setup_scrollable_projects(content_frame)
@@ -170,37 +184,43 @@ class StartScreen(tk.Frame):
     def create_project_card(self, filename, index):
         """프로젝트 카드 생성"""
         filepath = os.path.join('projects', filename)
-        
+
         # 프로젝트 정보 읽기
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 project_data = json.load(f)
-            
+
             project_name = project_data.get('name', filename.replace('.json', ''))
             description = project_data.get('description', '설명 없음')
             modified_time = datetime.fromtimestamp(os.path.getmtime(filepath))
-            
+
+            # 타입 확인 (프로젝트인지 체인인지)
+            item_type = project_data.get('type', 'project')
+
         except Exception as e:
             print(f"프로젝트 로드 오류: {e}")
             return
-        
-        # 카드 프레임 (⭐ fill='both', expand=True 추가)
+
+        # 카드 프레임
         card = tk.Frame(
             self.recent_frame,
             bg='#ecf0f1',
             relief='raised',
             borderwidth=1
         )
-        card.pack(fill='both', expand=True, padx=15,pady=(0,10))  # ⭐ padx=0으로 변경
-        
+        card.pack(fill='both', expand=True, padx=15,pady=(0,10))
+
         # 좌측 정보 영역
         info_frame = tk.Frame(card, bg='#ecf0f1')
         info_frame.pack(side='left', fill='both', expand=True, padx=(20,30), pady=10)
 
-        # 프로젝트 이름
+        # 아이콘 선택
+        icon = "🔗" if item_type == 'chain' else "📁"
+
+        # 프로젝트/체인 이름
         name_label = tk.Label(
             info_frame,
-            text=f"📁 {project_name}",
+            text=f"{icon} {project_name}",
             font=("맑은 고딕", 12, "bold"),
             bg='#ecf0f1',
             anchor='w'
@@ -234,32 +254,34 @@ class StartScreen(tk.Frame):
         button_frame.pack(side='right', padx=(30,20), pady=10)
 
         # 열기 버튼
+        open_text = "실행" if item_type == 'chain' else "열기"
         open_btn = tk.Button(
             button_frame,
-            text="열기",
+            text=open_text,
             font=("맑은 고딕", 9),
             bg='#3498db',
             fg='white',
             padx=15,
             pady=5,
             cursor='hand2',
-            command=lambda: self.open_project(filepath)
+            command=lambda: self.open_item(filepath, item_type)
         )
         open_btn.pack(side='left', padx=2)
-        
-        # 편집 버튼
-        edit_btn = tk.Button(
-            button_frame,
-            text="편집",
-            font=("맑은 고딕", 9),
-            bg='#95a5a6',
-            fg='white',
-            padx=15,
-            pady=5,
-            cursor='hand2',
-            command=lambda: self.edit_project(filepath)
-        )
-        edit_btn.pack(side='left', padx=2)
+
+        # 편집 버튼 (프로젝트만 표시)
+        if item_type == 'project':
+            edit_btn = tk.Button(
+                button_frame,
+                text="편집",
+                font=("맑은 고딕", 9),
+                bg='#95a5a6',
+                fg='white',
+                padx=15,
+                pady=5,
+                cursor='hand2',
+                command=lambda: self.edit_project(filepath)
+            )
+            edit_btn.pack(side='left', padx=2)
         
         # 제거 버튼
         remove_btn = tk.Button(
@@ -305,19 +327,42 @@ class StartScreen(tk.Frame):
         
         self.load_recent_projects()
     
+    def open_item(self, filepath, item_type):
+        """프로젝트 또는 체인 열기"""
+        if item_type == 'chain':
+            # 체인 로드 및 체인 러너 실행
+            from core.chain_manager import ChainManager
+            from ui.chain_runner import ChainRunner
+
+            chain_data = ChainManager.load_chain(filepath)
+            if not chain_data:
+                messagebox.showerror("오류", "체인을 불러올 수 없습니다.")
+                return
+
+            chain_items = chain_data.get('chain_items', [])
+
+            for widget in self.parent.winfo_children():
+                widget.destroy()
+
+            runner = ChainRunner(self.parent, self.app, chain_items)
+            runner.pack(fill='both', expand=True)
+        else:
+            # 프로젝트 열기
+            self.open_project(filepath)
+
     def open_project(self, filepath):
         """프로젝트 열기 (실행 화면)"""
         from ui.project_runner import ProjectRunner
         from core.project_manager import ProjectManager
-        
+
         project_data = ProjectManager.load_project(filepath)
         if not project_data:
             messagebox.showerror("오류", "프로젝트를 불러올 수 없습니다.")
             return
-        
+
         for widget in self.parent.winfo_children():
             widget.destroy()
-        
+
         runner = ProjectRunner(self.parent, self.app, project_data, filepath)
         runner.pack(fill='both', expand=True)
     
@@ -367,6 +412,29 @@ class StartScreen(tk.Frame):
             initialdir="projects",
             filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
         )
-        
+
         if filepath:
             self.open_project(filepath)
+
+    def start_chain_execution(self):
+        """매크로 체인 실행"""
+        from ui.chain_dialog import MacroChainDialog
+        from ui.chain_runner import ChainRunner
+        from core.project_manager import ProjectManager
+
+        # 체인 설정 다이얼로그
+        dialog = MacroChainDialog(self.parent, ProjectManager)
+        self.parent.wait_window(dialog)
+
+        if dialog.result:
+            # 체인 러너 화면으로 전환
+            for widget in self.parent.winfo_children():
+                widget.destroy()
+
+            runner = ChainRunner(self.parent, self.app, dialog.result)
+            runner.pack(fill='both', expand=True)
+
+    def show_hotkey_settings(self):
+        """전역 단축키 설정"""
+        from ui.hotkey_settings_dialog import HotkeySettingsDialog
+        HotkeySettingsDialog(self.parent)

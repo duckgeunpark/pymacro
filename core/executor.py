@@ -30,6 +30,12 @@ class MacroExecutor:
         self.current_row = 0
         self.current_action = 0
 
+        # 엑셀 루프 실행 시 사용되는 데이터 (action_type_variable에서 접근)
+        self.all_excel_data = {}  # {excel_id: dataframe}
+        self.excel_row_indices = {}  # {excel_id: current_row_index}
+        self.excel_start_row = 0
+        self.infinite_loop = False
+
         # 로그
         self.log_callback = None
         self.progress_callback = None
@@ -107,60 +113,116 @@ class MacroExecutor:
         self.log("⏹️ 중지 요청")
     
     def execute_excel_loop(self, settings):
-        """엑셀 행 반복 모드 (무한반복 지원)"""
-        # 엑셀 소스 가져오기
+        """엑셀 행 반복 모드 (무한반복 지원, 각 엑셀 독립 인덱스)"""
+        # 모든 엑셀 소스 로드
         if not self.excel_mgr.excel_sources:
             self.report_error("엑셀 데이터 소스가 없습니다.")
             return
-        
-        excel_source = self.excel_mgr.excel_sources[0]
-        df = self.excel_mgr.load_excel_data(excel_source['id'])
-        
-        if df is None:
-            self.report_error("엑셀 데이터를 로드할 수 없습니다.")
+
+        # 첫 번째 엑셀의 행 수를 기준으로 반복
+        primary_source = self.excel_mgr.excel_sources[0]
+        primary_df = self.excel_mgr.load_excel_data(primary_source['id'])
+
+        if primary_df is None:
+            self.report_error("메인 엑셀 데이터를 로드할 수 없습니다.")
             return
-        
+
+        # 모든 엑셀 데이터를 딕셔너리로 관리 {excel_id: dataframe}
+        self.all_excel_data = {primary_source.get('id', 1): primary_df}
+
+        # 나머지 엑셀 소스들도 로드
+        for source in self.excel_mgr.excel_sources[1:]:
+            df = self.excel_mgr.load_excel_data(source['id'])
+            if df is not None:
+                self.all_excel_data[source.get('id', len(self.all_excel_data) + 1)] = df
+            else:
+                self.log(f"⚠️ 엑셀{source.get('id')} 로드 실패: {source['name']}")
+
         start_row = settings.get('excel_start_row', 1) - 1  # 0-based index
+        self.excel_start_row = start_row
         end_row = settings.get('excel_end_row', None)
         if end_row is None:
-            end_row = len(df)
-        
+            end_row = len(primary_df)
+
         total_rows = end_row - start_row
-        infinite_loop = settings.get('excel_infinite_loop', False)  # 무한반복 옵션
-        
-        if infinite_loop:
-            self.log(f"📊 엑셀 무한반복 모드: {start_row+1}행 ~ {end_row}행 (중지할 때까지 반복)")
+        self.infinite_loop = settings.get('excel_infinite_loop', False)  # 무한반복 옵션
+
+        # 각 엑셀별 독립 인덱스 관리 {excel_id: current_row_index}
+        self.excel_row_indices = {excel_id: start_row for excel_id in self.all_excel_data.keys()}
+
+        if self.infinite_loop:
+            self.log(f"📊 엑셀 무한반복 모드: 메인 엑셀 {start_row+1}행 ~ {end_row}행 (각 엑셀 독립 반복)")
+            # 각 엑셀의 행 수 출력
+            for excel_id, df in self.all_excel_data.items():
+                source_name = self._get_excel_source_name(excel_id)
+                self.log(f"   - {source_name}: {len(df)}행")
         else:
             self.log(f"📊 엑셀 행 반복 모드: {start_row+1}행 ~ {end_row}행 (총 {total_rows}행)")
-        
+
         loop_count = 0  # 반복 횟수
-        
+
         while True:  # 무한 루프
             loop_count += 1
-            
-            if infinite_loop:
+
+            if self.infinite_loop:
                 self.log(f"\n🔄 === 반복 {loop_count}회차 시작 ===")
-            
+
             for row_idx in range(start_row, end_row):
                 if self.should_stop:
                     self.log(f"⏹️ 중지됨 (반복 {loop_count}회차, 행 {row_idx + 1})")
                     return
-                
+
                 self.current_row = row_idx + 1
-                row_data = df.iloc[row_idx].to_dict()
-                
-                self.log(f"\n--- 행 {self.current_row} 처리 시작 ---")
-                
-                if infinite_loop:
+
+                # 각 엑셀의 현재 행 데이터를 딕셔너리로 구성 (독립 인덱스 사용)
+                all_row_data = {}
+                for excel_id, df in self.all_excel_data.items():
+                    # 각 엑셀의 독립적인 행 인덱스 사용
+                    excel_row_idx = self.excel_row_indices[excel_id]
+
+                    if excel_row_idx < len(df):
+                        all_row_data[excel_id] = df.iloc[excel_row_idx].to_dict()
+                    else:
+                        # 행 인덱스가 끝나면 처음으로 돌아감
+                        self.excel_row_indices[excel_id] = start_row
+                        all_row_data[excel_id] = df.iloc[start_row].to_dict()
+
+                    # 다음 행으로 인덱스 증가
+                    self.excel_row_indices[excel_id] += 1
+
+                    # 끝에 도달하면 처음으로 (다음 반복을 위해)
+                    if self.excel_row_indices[excel_id] >= len(df):
+                        if self.infinite_loop:
+                            self.excel_row_indices[excel_id] = start_row
+                            source_name = self._get_excel_source_name(excel_id)
+                            self.log(f"   🔄 {source_name} 끝 도달 → 처음부터 반복")
+                            # 해당 엑셀의 중복 체크 배열 초기화
+                            self.excel_mgr.reset_pasted_values(excel_id)
+
+                # 현재 각 엑셀의 행 번호 로그
+                row_info_parts = []
+                for excel_id in self.all_excel_data.keys():
+                    # 현재 사용된 행 번호 (증가 전 값)
+                    used_row = self.excel_row_indices[excel_id]
+                    if used_row == start_row:
+                        # 방금 리셋되었으면 마지막 행이었던 것
+                        df = self.all_excel_data[excel_id]
+                        used_row = len(df)
+                    source_name = self._get_excel_source_name(excel_id)
+                    row_info_parts.append(f"{source_name}:{used_row}")
+
+                self.log(f"\n--- 메인행 {self.current_row} 처리 ({', '.join(row_info_parts)}) ---")
+
+                if self.infinite_loop:
                     status = f"반복 {loop_count}회차 - 행 {self.current_row}/{end_row} 처리 중"
                 else:
                     status = f"행 {self.current_row} 처리 중"
-                
+
                 self.update_progress(row_idx - start_row + 1, total_rows, status)
-                
+
                 # 플로우 실행
                 try:
-                    self.execute_flow(row_data)
+                    self.execute_flow(all_row_data)
                 except Exception as e:
                     on_error = settings.get('on_error', 'skip')
                     if on_error == 'stop':
@@ -174,20 +236,27 @@ class MacroExecutor:
                         for attempt in range(retry_count):
                             self.log(f"재시도 {attempt+1}/{retry_count}")
                             try:
-                                self.execute_flow(row_data)
+                                self.execute_flow(all_row_data)
                                 break
                             except:
                                 if attempt == retry_count - 1:
                                     self.report_error(f"행 {self.current_row} 재시도 실패. 건너뜁니다.")
-            
+
             # 무한반복이 아니면 한 번만 실행하고 종료
-            if not infinite_loop:
+            if not self.infinite_loop:
                 break
-            
-            # 무한반복일 경우 다시 처음부터
-            if infinite_loop:
-                self.log(f"✅ 반복 {loop_count}회차 완료. 처음부터 다시 시작합니다...")
+
+            # 무한반복일 경우 다시 처음부터 (메인 엑셀만 리셋, 나머지는 독립 인덱스 유지)
+            if self.infinite_loop:
+                self.log(f"✅ 반복 {loop_count}회차 완료. 메인 엑셀 처음부터 다시 시작...")
                 time.sleep(0.5)  # 약간의 딜레이
+
+    def _get_excel_source_name(self, excel_id):
+        """엑셀 ID로 소스 이름 조회"""
+        for source in self.excel_mgr.excel_sources:
+            if source.get('id') == excel_id:
+                return source.get('name', f'엑셀{excel_id}')
+        return f'엑셀{excel_id}'
 
     
     def execute_flow_repeat(self, settings):
@@ -270,7 +339,10 @@ class MacroExecutor:
         
         elif action_type == 'paste':
             self.action_paste()
-        
+
+        elif action_type == 'mouse_scroll':
+            self.action_mouse_scroll(params)
+
         elif action_type == 'delay':
             self.action_delay(params)
         
@@ -371,22 +443,73 @@ class MacroExecutor:
         """변수 타이핑 (한글/영문 모두 지원 - pyperclip 사용)"""
         var_type = params.get('var_type')
         var_name = params.get('var_name', '')
-        
+        excel_id = params.get('excel_id', 1)  # 기본값 1 (하위 호환성)
+
         if var_type == 'excel' and row_data:
-            text = str(row_data.get(var_name, ''))
+            # row_data가 딕셔너리의 딕셔너리인 경우 (다중 엑셀)
+            if isinstance(row_data, dict) and excel_id in row_data:
+                text = str(row_data[excel_id].get(var_name, ''))
+            # row_data가 단순 딕셔너리인 경우 (기존 단일 엑셀, 하위 호환성)
+            elif isinstance(row_data, dict) and var_name in row_data:
+                text = str(row_data.get(var_name, ''))
+            else:
+                text = ''
+
+            # 엑셀 데이터인 경우 중복 체크 및 다음 행 찾기
+            if text and var_type == 'excel' and excel_id in self.all_excel_data:
+                skip_count = 0
+
+                # 중복이 아닌 값이 나올 때까지 다음 행 탐색
+                while self.excel_mgr.is_duplicate(excel_id, text):
+                    skip_count += 1
+                    self.log(f"    ⏭️ 중복 데이터 스킵 ({skip_count}번째): {text}")
+
+                    # 다음 행으로 인덱스 증가
+                    df = self.all_excel_data[excel_id]
+                    self.excel_row_indices[excel_id] += 1
+
+                    # 끝에 도달하면 처음으로
+                    if self.excel_row_indices[excel_id] >= len(df):
+                        if self.infinite_loop:
+                            self.excel_row_indices[excel_id] = self.excel_start_row
+                            source_name = self._get_excel_source_name(excel_id)
+                            self.log(f"    🔄 {source_name} 끝 도달 → 처음부터 반복")
+                            # 해당 엑셀의 중복 체크 배열 초기화
+                            self.excel_mgr.reset_pasted_values(excel_id)
+                        else:
+                            # 무한 루프가 아니면 더 이상 진행 불가
+                            self.log(f"    ⚠️ 엑셀 끝에 도달했지만 중복이 아닌 데이터 없음")
+                            return
+
+                    # 다음 행 데이터 가져오기
+                    next_row_idx = self.excel_row_indices[excel_id]
+                    if next_row_idx < len(df):
+                        text = str(df.iloc[next_row_idx][var_name])
+                    else:
+                        self.log(f"    ⚠️ 다음 행 데이터를 가져올 수 없음")
+                        return
+
+                if skip_count > 0:
+                    self.log(f"    ✅ 중복 아닌 데이터 발견 (총 {skip_count}개 스킵): {text}")
+
         elif var_type == 'counter':
             text = str(self.current_row)
         elif var_type == 'timestamp':
             text = datetime.now().strftime('%Y%m%d_%H%M%S')
         else:
             text = ''
-        
+
         try:
             # 클립보드로 복사 후 붙여넣기 (모든 언어 지원)
             pyperclip.copy(text)
             time.sleep(0.1)
             pyautogui.hotkey('ctrl', 'v')
             time.sleep(0.2)
+
+            # 엑셀 데이터를 성공적으로 붙여넣었으면 기록
+            if var_type == 'excel' and text:
+                self.excel_mgr.add_pasted_value(excel_id, text)
+
         except Exception as e:
             self.log(f"    ⚠️ 변수 타이핑 오류: {e}")
             raise Exception(f"변수 타이핑 실패: {str(e)}")
@@ -407,7 +530,19 @@ class MacroExecutor:
         """붙여넣기"""
         pyautogui.hotkey('ctrl', 'v')
         time.sleep(0.2)
-    
+
+    def action_mouse_scroll(self, params):
+        """마우스 스크롤"""
+        direction = params.get('direction', 'down')
+        amount = params.get('amount', 3)
+
+        # pyautogui.scroll: 양수는 위로, 음수는 아래로
+        # amount를 100 단위로 변환 (더 부드러운 스크롤)
+        scroll_amount = amount * 100 if direction == 'up' else -amount * 100
+
+        pyautogui.scroll(scroll_amount)
+        time.sleep(0.2)
+
     def action_delay(self, params):
         """대기"""
         seconds = params.get('seconds', 1)

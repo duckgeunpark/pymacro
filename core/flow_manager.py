@@ -100,7 +100,16 @@ class FlowManager:
                 if coord:
                     coord_name = coord['name']
             click_type = params.get('click_type', 'left')
-            return f"[좌표:{coord_name}] {click_type} 클릭"
+            click_count = params.get('click_count', 1)
+
+            # 클릭 타입 한글로 변환
+            click_type_kr = "좌클릭" if click_type == "left" else "우클릭" if click_type == "right" else "중간클릭"
+
+            # 클릭 횟수가 1회보다 많으면 표시
+            if click_count > 1:
+                return f"[좌표:{coord_name}] {click_type_kr}{click_count}"
+            else:
+                return f"[좌표:{coord_name}] {click_type_kr}"
         
         elif action_type == 'click_image':
             image_id = params.get('image_id')
@@ -118,7 +127,12 @@ class FlowManager:
         elif action_type == 'type_variable':
             var_type = params.get('var_type')  # excel, counter, timestamp
             var_name = params.get('var_name', '')
-            return f"[타이핑] {{{var_type}:{var_name}}}"
+            excel_id = params.get('excel_id', 1)  # 기본값 1 (하위 호환성)
+            excel_name = params.get('excel_name', 1)  # 기본값 1 (하위 호환성)
+            if var_type == 'excel':
+                return f"[타이핑] {{{excel_name}:{var_name}}}"
+            else:
+                return f"[타이핑] {{{var_type}:{var_name}}}"
         
         elif action_type == 'key_press':
             key = params.get('key', '')
@@ -130,7 +144,13 @@ class FlowManager:
         
         elif action_type == 'paste':
             return f"[붙여넣기] Ctrl+V"
-        
+
+        elif action_type == 'mouse_scroll':
+            direction = params.get('direction', 'down')
+            amount = params.get('amount', 3)
+            direction_kr = "위로" if direction == "up" else "아래로"
+            return f"[스크롤] {direction_kr} {amount}"
+
         elif action_type == 'delay':
             seconds = params.get('seconds', 0)
             return f"[대기] {seconds}초"

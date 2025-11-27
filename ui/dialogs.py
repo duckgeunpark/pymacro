@@ -497,7 +497,7 @@ class ActionSelectDialog(tk.Toplevel):
     def __init__(self, parent, coord_mgr, excel_mgr, image_mgr):
         super().__init__(parent)
         self.title("액션 추가")
-        self.geometry("300x480")
+        self.geometry("400x440")
         self.resizable(False, False)
         
         self.coord_mgr = coord_mgr
@@ -555,10 +555,10 @@ class ActionSelectDialog(tk.Toplevel):
             pady=10
         )
         section.pack(fill='x', pady=5)
-        
+
         btn_frame = tk.Frame(section)
         btn_frame.pack()
-        
+
         tk.Button(
             btn_frame,
             text="좌표 클릭",
@@ -566,7 +566,7 @@ class ActionSelectDialog(tk.Toplevel):
             width=12,
             command=lambda: self.select_action('click_coord')
         ).grid(row=0, column=0, padx=5, pady=5)
-        
+
         tk.Button(
             btn_frame,
             text="이미지 클릭",
@@ -574,7 +574,15 @@ class ActionSelectDialog(tk.Toplevel):
             width=12,
             command=lambda: self.select_action('click_image')
         ).grid(row=0, column=1, padx=5, pady=5)
-        
+
+        tk.Button(
+            btn_frame,
+            text="마우스 스크롤",
+            font=("맑은 고딕", 9),
+            width=12,
+            command=lambda: self.select_action('mouse_scroll')
+        ).grid(row=0, column=2, padx=5, pady=5)
+
         # 키보드 동작
         section = tk.LabelFrame(
             parent,
@@ -584,10 +592,10 @@ class ActionSelectDialog(tk.Toplevel):
             pady=10
         )
         section.pack(fill='x', pady=5)
-        
+
         btn_frame = tk.Frame(section)
         btn_frame.pack()
-        
+
         tk.Button(
             btn_frame,
             text="텍스트 타이핑",
@@ -595,7 +603,7 @@ class ActionSelectDialog(tk.Toplevel):
             width=12,
             command=lambda: self.select_action('type_text')
         ).grid(row=0, column=0, padx=5, pady=5)
-        
+
         tk.Button(
             btn_frame,
             text="변수 타이핑",
@@ -603,15 +611,15 @@ class ActionSelectDialog(tk.Toplevel):
             width=12,
             command=lambda: self.select_action('type_variable')
         ).grid(row=0, column=1, padx=5, pady=5)
-        
+
         tk.Button(
             btn_frame,
             text="키 입력",
             font=("맑은 고딕", 9),
             width=12,
             command=lambda: self.select_action('key_press')
-        ).grid(row=1, column=0, padx=5, pady=5)
-               
+        ).grid(row=0, column=2, padx=5, pady=5)
+
         # 제어 동작
         section = tk.LabelFrame(
             parent,
@@ -621,10 +629,10 @@ class ActionSelectDialog(tk.Toplevel):
             pady=10
         )
         section.pack(fill='x', pady=5)
-        
+
         btn_frame = tk.Frame(section)
         btn_frame.pack()
-        
+
         tk.Button(
             btn_frame,
             text="딜레이",
@@ -632,7 +640,7 @@ class ActionSelectDialog(tk.Toplevel):
             width=12,
             command=lambda: self.select_action('delay')
         ).grid(row=0, column=0, padx=5, pady=5)
-        
+
         tk.Button(
             btn_frame,
             text="이미지 대기",
@@ -667,11 +675,13 @@ class ActionSelectDialog(tk.Toplevel):
     def select_action(self, action_type):
         """액션 선택"""
         params = None
-        
+
         if action_type == 'click_coord':
             params = self.config_click_coord()
         elif action_type == 'click_image':
             params = self.config_click_image()
+        elif action_type == 'mouse_scroll':
+            params = self.config_mouse_scroll()
         elif action_type == 'type_text':
             params = self.config_type_text()
         elif action_type == 'type_variable':
@@ -699,7 +709,7 @@ class ActionSelectDialog(tk.Toplevel):
     
         dialog = tk.Toplevel(self)
         dialog.title("좌표 클릭 설정")
-        dialog.geometry("300x270")
+        dialog.geometry("300x300")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -730,22 +740,41 @@ class ActionSelectDialog(tk.Toplevel):
             text="클릭 유형:",
             font=("맑은 고딕", 10, "bold")
         ).pack(anchor='w', padx=20, pady=(10, 5))
-        
+
         click_var = tk.StringVar(value='left')
         tk.Radiobutton(dialog, text="좌클릭", variable=click_var, value='left').pack(anchor='w', padx=40)
         tk.Radiobutton(dialog, text="우클릭", variable=click_var, value='right').pack(anchor='w', padx=40)
-        tk.Radiobutton(dialog, text="더블클릭", variable=click_var, value='double').pack(anchor='w', padx=40)
-        
+
+        tk.Label(
+            dialog,
+            text="클릭 횟수:",
+            font=("맑은 고딕", 10, "bold")
+        ).pack(anchor='w', padx=20, pady=(10, 5))
+
+        count_frame = tk.Frame(dialog)
+        count_frame.pack(fill='x', padx=20, pady=(0, 10))
+
+        count_var = tk.IntVar(value=1)
+        count_spinbox = tk.Spinbox(
+            count_frame,
+            from_=1,
+            to=10,
+            textvariable=count_var,
+            font=("맑은 고딕", 10),
+            width=10
+        )
+        count_spinbox.pack(side='left')
+
         def on_ok():
             selected_idx = coord_combo.current()
             coord_id = self.coord_mgr.coordinates[selected_idx]['id']
-            
+
             click_type = click_var.get()
-            click_count = 2 if click_type == 'double' else 1
-            
+            click_count = count_var.get()
+
             result[0] = {
                 'coord_id': coord_id,
-                'click_type': 'left' if click_type == 'double' else click_type,
+                'click_type': click_type,
                 'click_count': click_count,
                 'pre_delay': 0.2,
                 'post_delay': 0.2
@@ -780,7 +809,101 @@ class ActionSelectDialog(tk.Toplevel):
         self.wait_window(dialog)
         return result[0]
 
-    
+    def config_mouse_scroll(self):
+        """마우스 스크롤 설정"""
+        dialog = tk.Toplevel(self)
+        dialog.title("마우스 스크롤 설정")
+        dialog.geometry("400x160")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.attributes('-topmost', True)
+        set_dialog_icon(dialog)
+
+        result = [None]
+
+        # 스크롤 방향 (한 줄)
+        direction_frame = tk.Frame(dialog)
+        direction_frame.pack(fill='x', padx=20, pady=(20, 10))
+
+        tk.Label(
+            direction_frame,
+            text="스크롤 방향:",
+            font=("맑은 고딕", 10, "bold"),
+            width=10,
+            anchor='w'
+        ).pack(side='left')
+
+        direction_var = tk.StringVar(value='down')
+        tk.Radiobutton(direction_frame, text="위로", variable=direction_var, value='up').pack(side='left', padx=5)
+        tk.Radiobutton(direction_frame, text="아래로", variable=direction_var, value='down').pack(side='left', padx=5)
+
+        # 스크롤 양 (한 줄)
+        amount_frame = tk.Frame(dialog)
+        amount_frame.pack(fill='x', padx=20, pady=(0, 10))
+
+        tk.Label(
+            amount_frame,
+            text="스크롤 양:",
+            font=("맑은 고딕", 10, "bold"),
+            width=10,
+            anchor='w'
+        ).pack(side='left')
+
+        amount_var = tk.IntVar(value=3)
+        tk.Spinbox(
+            amount_frame,
+            from_=1,
+            to=20,
+            textvariable=amount_var,
+            font=("맑은 고딕", 10),
+            width=10
+        ).pack(side='left')
+
+        tk.Label(
+            amount_frame,
+            text=" (클수록 많이 스크롤)",
+            font=("맑은 고딕", 9)
+        ).pack(side='left')
+
+        def on_ok():
+            direction = direction_var.get()
+            amount = amount_var.get()
+
+            result[0] = {
+                'direction': direction,
+                'amount': amount
+            }
+            dialog.destroy()
+
+        tk.Button(
+            dialog,
+            text="확인",
+            command=on_ok,
+            bg='#3498db',
+            fg='white',
+            padx=20,
+            pady=5
+        ).pack(pady=20)
+
+        # 중앙 배치 및 포커스
+        dialog.update_idletasks()
+        width = dialog.winfo_width()
+        height = dialog.winfo_height()
+        parent_x = self.winfo_x()
+        parent_y = self.winfo_y()
+        parent_width = self.winfo_width()
+        parent_height = self.winfo_height()
+        x = parent_x + (parent_width - width) // 2
+        y = parent_y + (parent_height - height) // 2
+        dialog.geometry(f'{width}x{height}+{x}+{y}')
+
+        dialog.lift()
+        dialog.focus_force()
+
+        self.wait_window(dialog)
+        return result[0]
+
+
     def config_click_image(self):
         """이미지 클릭 설정"""
         if not self.image_mgr.images:
@@ -940,36 +1063,54 @@ class ActionSelectDialog(tk.Toplevel):
         if not self.excel_mgr.excel_sources:
             self._show_error_dialog("등록된 엑셀 데이터가 없습니다.")
             return None
-        
+
         dialog = tk.Toplevel(self)
         dialog.title("변수 타이핑 설정")
-        dialog.geometry("300x280")
+        dialog.geometry("400x520")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
         set_dialog_icon(dialog)
-        
+
         result = [None]
-        
+
         tk.Label(
             dialog,
             text="변수 유형:",
             font=("맑은 고딕", 10, "bold")
         ).pack(anchor='w', padx=20, pady=(20, 5))
-        
+
         var_type = tk.StringVar(value='excel')
         tk.Radiobutton(dialog, text="엑셀 데이터", variable=var_type, value='excel').pack(anchor='w', padx=40)
         tk.Radiobutton(dialog, text="현재 행 번호", variable=var_type, value='counter').pack(anchor='w', padx=40)
         tk.Radiobutton(dialog, text="타임스탬프", variable=var_type, value='timestamp').pack(anchor='w', padx=40)
-        
+
+        # 엑셀 소스 선택 (다중 엑셀 지원)
+        tk.Label(
+            dialog,
+            text="엑셀 소스 선택:",
+            font=("맑은 고딕", 10, "bold")
+        ).pack(anchor='w', padx=20, pady=(15, 5))
+
+        excel_var = tk.StringVar()
+        excel_combo = ttk.Combobox(
+            dialog,
+            textvariable=excel_var,
+            font=("맑은 고딕", 10),
+            state='readonly'
+        )
+        excel_values = [f"{idx+1}. {src['name']}" for idx, src in enumerate(self.excel_mgr.excel_sources)]
+        excel_combo['values'] = excel_values
+        excel_combo.current(0)
+        excel_combo.pack(fill='x', padx=20, pady=(0, 15))
+
         tk.Label(
             dialog,
             text="칼럼 선택 (엑셀 데이터인 경우):",
             font=("맑은 고딕", 10, "bold")
-        ).pack(anchor='w', padx=20, pady=(15, 5))
-        
+        ).pack(anchor='w', padx=20, pady=(0, 5))
+
         # 칼럼 선택
-        excel_source = self.excel_mgr.excel_sources[0]
         column_var = tk.StringVar()
         column_combo = ttk.Combobox(
             dialog,
@@ -977,22 +1118,82 @@ class ActionSelectDialog(tk.Toplevel):
             font=("맑은 고딕", 10),
             state='readonly'
         )
-        column_combo['values'] = excel_source['columns']
-        if excel_source['columns']:
-            column_combo.current(0)
         column_combo.pack(fill='x', padx=20, pady=(0, 15))
-        
+
+        # 데이터 처리 옵션
+        options_frame = tk.LabelFrame(
+            dialog,
+            text="데이터 처리 옵션",
+            font=("맑은 고딕", 10, "bold"),
+            padx=15,
+            pady=10
+        )
+        options_frame.pack(fill='x', padx=20, pady=(0, 15))
+
+        # 공백 행 제거 옵션
+        remove_empty_var = tk.BooleanVar(value=True)
+        tk.Checkbutton(
+            options_frame,
+            text="🧹 상위 공백 행 제거",
+            variable=remove_empty_var,
+            font=("맑은 고딕", 9)
+        ).pack(anchor='w', pady=2)
+
+        # 중복 행 제거 옵션
+        remove_dup_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            options_frame,
+            text="🔄 중복 행 제거",
+            variable=remove_dup_var,
+            font=("맑은 고딕", 9)
+        ).pack(anchor='w', pady=2)
+
+        tk.Label(
+            options_frame,
+            text="※ 옵션 변경 시 선택한 엑셀 소스에 적용됩니다",
+            font=("맑은 고딕", 8),
+            fg='#7f8c8d'
+        ).pack(anchor='w', pady=(5, 0))
+
+        # 엑셀 소스 변경 시 칼럼 목록 및 옵션 업데이트
+        def on_excel_change(event=None):
+            selected_idx = excel_combo.current()
+            if selected_idx >= 0:
+                excel_source = self.excel_mgr.excel_sources[selected_idx]
+                column_combo['values'] = excel_source['columns']
+                if excel_source['columns']:
+                    column_combo.current(0)
+
+                # 현재 엑셀 소스의 옵션값 로드
+                remove_empty_var.set(excel_source.get('remove_empty_rows', True))
+                remove_dup_var.set(excel_source.get('remove_duplicates', False))
+
+        excel_combo.bind('<<ComboboxSelected>>', on_excel_change)
+
+        # 초기 칼럼 목록 및 옵션 설정
+        on_excel_change()
+
         def on_ok():
             vtype = var_type.get()
+            selected_excel_idx = excel_combo.current()
+            excel_source = self.excel_mgr.excel_sources[selected_excel_idx]
+            excel_id = excel_source.get('id', selected_excel_idx + 1)
+            excel_name = excel_source.get('name')
             var_name = column_combo.get() if vtype == 'excel' else ''
-            
+
+            # 엑셀 소스의 데이터 처리 옵션 업데이트
+            excel_source['remove_empty_rows'] = remove_empty_var.get()
+            excel_source['remove_duplicates'] = remove_dup_var.get()
+
             result[0] = {
                 'var_type': vtype,
                 'var_name': var_name,
+                'excel_id': excel_id,  # 엑셀 ID 추가
+                'excel_name': excel_name,
                 'interval': 0.05
             }
             dialog.destroy()
-        
+
         tk.Button(
             dialog,
             text="확인",
@@ -1002,7 +1203,7 @@ class ActionSelectDialog(tk.Toplevel):
             padx=20,
             pady=5
         ).pack(pady=20)
-        
+
         # 중앙 배치 및 포커스
         dialog.update_idletasks()
         width = dialog.winfo_width()
@@ -1014,10 +1215,10 @@ class ActionSelectDialog(tk.Toplevel):
         x = parent_x + (parent_width - width) // 2
         y = parent_y + (parent_height - height) // 2
         dialog.geometry(f'{width}x{height}+{x}+{y}')
-        
+
         dialog.lift()
         dialog.focus_force()
-        
+
         self.wait_window(dialog)
         return result[0]
 

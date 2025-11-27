@@ -4,6 +4,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
 from datetime import datetime
+import os
 from utils.ui_helpers import set_dialog_icon, center_window_on_parent
 
 from core.project_manager import ProjectManager
@@ -35,7 +36,10 @@ class ProjectEditor(tk.Frame):
         
         self.flow_mgr = FlowManager()
         self.flow_mgr.load_from_list(project_data.get('flow_sequence', []))
-        
+
+        # 드래그 앤 드롭 관련 변수
+        self.drag_data = {"item": None, "index": None, "y": 0}
+
         self.setup_ui()
     
     def setup_ui(self):
@@ -331,18 +335,18 @@ class ProjectEditor(tk.Frame):
         info_frame = tk.Frame(item, bg='white')
         info_frame.pack(side='left', fill='both', expand=True, padx=5, pady=5)
 
-        # 제목 길이 제한 (최대 12자)
-        MAX_TITLE_LENGTH = 10
+        # 이름만 표시 (제목 길이 제한)
+        MAX_TITLE_LENGTH = 12
         display_name = source['name'] if len(source['name']) <= MAX_TITLE_LENGTH else source['name'][:MAX_TITLE_LENGTH] + '...'
 
         tk.Label(
             info_frame,
-            text=f"{source['id']}. {display_name}",
+            text=display_name,
             font=("맑은 고딕", 9, "bold"),
             bg='white',
             anchor='w'
         ).pack(anchor='w', fill='x')
-        
+
         tk.Label(
             info_frame,
             text=f"{source['row_count']} rows, {len(source['columns'])} cols",
@@ -351,10 +355,10 @@ class ProjectEditor(tk.Frame):
             bg='white',
             anchor='w'
         ).pack(anchor='w')
-        
+
         btn_frame = tk.Frame(item, bg='white')
         btn_frame.pack(side='right', padx=3)
-        
+
         tk.Button(
             btn_frame,
             text="❌",
@@ -444,11 +448,16 @@ class ProjectEditor(tk.Frame):
         item = tk.Frame(self.flow_list_frame, bg='#ecf0f1', relief='raised', borderwidth=1)
         item.pack(fill='x', pady=3, expand=True, padx=10)
 
+        # 드래그 앤 드롭 이벤트 바인딩
+        item.bind("<Button-1>", lambda e: self.on_drag_start(e, item, idx))
+        item.bind("<B1-Motion>", lambda e: self.on_drag_motion(e, item))
+        item.bind("<ButtonRelease-1>", lambda e: self.on_drag_release(e, item, idx))
+
         # 액션 타입별 색상 가져오기
         action_color = self.get_action_color(action.get('type', ''))
 
         # 번호
-        tk.Label(
+        num_label = tk.Label(
             item,
             text=f"{idx+1}",
             font=("맑은 고딕", 11, "bold"),
@@ -456,13 +465,17 @@ class ProjectEditor(tk.Frame):
             fg='white',
             width=3,
             height=1
-        ).pack(side='left', padx=(8,5), pady=8)
-        
+        )
+        num_label.pack(side='left', padx=(8,5), pady=8)
+        num_label.bind("<Button-1>", lambda e: self.on_drag_start(e, item, idx))
+        num_label.bind("<B1-Motion>", lambda e: self.on_drag_motion(e, item))
+        num_label.bind("<ButtonRelease-1>", lambda e: self.on_drag_release(e, item, idx))
+
         # 액션 설명
         display_text = self.flow_mgr.get_action_display_text(
             action, self.coord_mgr, self.excel_mgr, self.image_mgr
         )
-        
+
         text_label = tk.Label(
             item,
             text=display_text,
@@ -472,31 +485,13 @@ class ProjectEditor(tk.Frame):
             justify='left'
         )
         text_label.pack(side='left', fill='both', expand=True, padx=5, pady=8)
+        text_label.bind("<Button-1>", lambda e: self.on_drag_start(e, item, idx))
+        text_label.bind("<B1-Motion>", lambda e: self.on_drag_motion(e, item))
+        text_label.bind("<ButtonRelease-1>", lambda e: self.on_drag_release(e, item, idx))
         
-        # 버튼
-        btn_frame = tk.Frame(item, bg='#ecf0f1')
-        btn_frame.pack(side='right', padx=8, pady=5)
-        
+        # 삭제 버튼만 유지 (드래그 앤 드롭으로 순서 변경 가능하므로 ▲▼ 버튼 제거)
         tk.Button(
-            btn_frame,
-            text="▲",
-            font=("맑은 고딕", 9),
-            width=3,
-            height=1,
-            command=lambda: self.move_action_up(action['id'])
-        ).pack(side='left', padx=3)
-        
-        tk.Button(
-            btn_frame,
-            text="▼",
-            font=("맑은 고딕", 9),
-            width=3,
-            height=1,
-            command=lambda: self.move_action_down(action['id'])
-        ).pack(side='left', padx=3)
-        
-        tk.Button(
-            btn_frame,
+            item,
             text="❌",
             font=("맑은 고딕", 9),
             width=3,
@@ -504,7 +499,7 @@ class ProjectEditor(tk.Frame):
             bg='#e74c3c',
             fg='white',
             command=lambda: self.delete_action(action['id'])
-        ).pack(side='left', padx=3)
+        ).pack(side='right', padx=8, pady=5)
     
     # 좌표 추가
     def add_coordinate_dialog(self):
@@ -741,13 +736,20 @@ class ProjectEditor(tk.Frame):
             initial_value=""
         )
         self.parent.wait_window(dialog)
-        
+
         name = dialog.result
         if not name:
             return
-        
-        # 추가
-        source = self.excel_mgr.add_excel_source(name, filepath, sheet_name, selected_columns)
+
+        # 추가 (기본값으로 자동 최신 파일 선택 비활성화, 중복 제거 활성화)
+        source = self.excel_mgr.add_excel_source(
+            name, filepath, sheet_name, selected_columns,
+            auto_latest=False,
+            auto_directory=None,
+            auto_prefix='list',
+            remove_empty_rows=True,
+            remove_duplicates=True
+        )
         if source:
             self.refresh_excel_list()
             messagebox.showinfo("완료", f"엑셀 데이터 '{name}'이(가) 추가되었습니다.\n\n행 수: {source['row_count']}\n칼럼 수: {len(selected_columns)}")
@@ -964,7 +966,126 @@ class ProjectEditor(tk.Frame):
         dialog.wait_window()
         return result[0]
 
-    
+    def select_data_options_dialog(self):
+        """데이터 처리 옵션 선택 다이얼로그"""
+        dialog = tk.Toplevel(self.parent)
+        dialog.title("데이터 처리 옵션")
+        dialog.geometry("400x300")
+        dialog.transient(self.parent)
+        dialog.grab_set()
+        dialog.attributes('-topmost', True)
+
+        result = [None]
+
+        # 제목
+        tk.Label(
+            dialog,
+            text="📊 데이터 처리 옵션",
+            font=("맑은 고딕", 14, "bold")
+        ).pack(pady=20)
+
+        # 설명
+        tk.Label(
+            dialog,
+            text="엑셀 데이터 로드 시 적용할 옵션을 선택하세요",
+            font=("맑은 고딕", 9),
+            fg='#7f8c8d'
+        ).pack(pady=(0, 20))
+
+        # 옵션 프레임
+        options_frame = tk.Frame(dialog, bg='white', padx=20, pady=20)
+        options_frame.pack(fill='both', expand=True, padx=20)
+
+        # 공백 행 제거 옵션
+        remove_empty_var = tk.BooleanVar(value=True)
+
+        empty_frame = tk.Frame(options_frame, bg='white')
+        empty_frame.pack(fill='x', pady=10)
+
+        tk.Checkbutton(
+            empty_frame,
+            text="🧹 상위 공백 행 제거",
+            variable=remove_empty_var,
+            font=("맑은 고딕", 11, "bold"),
+            bg='white'
+        ).pack(anchor='w')
+
+        tk.Label(
+            empty_frame,
+            text="   데이터 시작 전의 빈 행을 자동으로 제거합니다",
+            font=("맑은 고딕", 9),
+            fg='#7f8c8d',
+            bg='white'
+        ).pack(anchor='w')
+
+        # 중복 제거 옵션
+        remove_dup_var = tk.BooleanVar(value=False)
+
+        dup_frame = tk.Frame(options_frame, bg='white')
+        dup_frame.pack(fill='x', pady=10)
+
+        tk.Checkbutton(
+            dup_frame,
+            text="🔄 중복 행 제거",
+            variable=remove_dup_var,
+            font=("맑은 고딕", 11, "bold"),
+            bg='white'
+        ).pack(anchor='w')
+
+        tk.Label(
+            dup_frame,
+            text="   선택한 컬럼 기준으로 중복된 행을 제거합니다",
+            font=("맑은 고딕", 9),
+            fg='#7f8c8d',
+            bg='white'
+        ).pack(anchor='w')
+
+        # 버튼
+        btn_frame = tk.Frame(dialog)
+        btn_frame.pack(pady=20)
+
+        def on_confirm():
+            result[0] = {
+                'remove_empty': remove_empty_var.get(),
+                'remove_duplicates': remove_dup_var.get()
+            }
+            dialog.destroy()
+
+        def on_cancel():
+            result[0] = None
+            dialog.destroy()
+
+        tk.Button(
+            btn_frame,
+            text="확인",
+            font=("맑은 고딕", 10, "bold"),
+            bg='#3498db',
+            fg='white',
+            padx=30,
+            pady=8,
+            command=on_confirm
+        ).pack(side='left', padx=5)
+
+        tk.Button(
+            btn_frame,
+            text="취소",
+            font=("맑은 고딕", 10),
+            bg='#95a5a6',
+            fg='white',
+            padx=30,
+            pady=8,
+            command=on_cancel
+        ).pack(side='left', padx=5)
+
+        # 중앙 배치
+        center_window_on_parent(dialog, self.parent)
+        dialog.lift()
+        dialog.focus_force()
+
+        dialog.wait_window()
+        return result[0]
+
+
     def delete_excel(self, source_id):
         """엑셀 삭제"""
         if messagebox.askyesno("확인", "이 엑셀 데이터를 삭제하시겠습니까?"):
@@ -1076,13 +1197,14 @@ class ProjectEditor(tk.Frame):
             # 마우스 동작 - 파란색
             'click_coord': '#3498db',
             'click_image': '#3498db',
-            
+            'mouse_scroll': '#3498db',
+
             # 키보드 동작 - 녹색
             'type_text': '#27ae60',
             'type_variable': '#27ae60',
             'key_press': '#27ae60',
             'paste': '#27ae60',
-            
+
             # 제어 동작 - 빨간색
             'delay': '#e74c3c',
             'wait_image': '#e74c3c',
@@ -1090,7 +1212,7 @@ class ProjectEditor(tk.Frame):
             # 기타 - 노란색
             'screenshot': '#f39c12',
         }
-        
+
         return color_map.get(action_type, '#95a5a6')
 
     def get_action_category(self, action_type):
@@ -1099,13 +1221,14 @@ class ProjectEditor(tk.Frame):
             # 마우스 동작
             'click_coord': '🖱️ 마우스',
             'click_image': '🖱️ 마우스',
-            
+            'mouse_scroll': '🖱️ 마우스',
+
             # 키보드 동작
             'type_text': '⌨️ 키보드',
             'type_variable': '⌨️ 키보드',
             'key_press': '⌨️ 키보드',
             'paste': '⌨️ 키보드',
-            
+
             # 제어 동작
             'delay': '⏱️ 제어',
             'wait_image': '⏱️ 제어',
@@ -1113,6 +1236,68 @@ class ProjectEditor(tk.Frame):
             # 기타
             'screenshot': '💾 기타',
         }
-        
+
         return categories.get(action_type, '❓ 기타')
+
+    # 드래그 앤 드롭 이벤트 핸들러
+    def on_drag_start(self, event, item, idx):
+        """드래그 시작"""
+        # 버튼 클릭은 드래그 무시
+        if event.widget.winfo_class() == 'Button':
+            return
+
+        self.drag_data["item"] = item
+        self.drag_data["index"] = idx
+        self.drag_data["y"] = event.y_root
+
+        # 드래그 중 시각적 피드백
+        item.config(bg='#3498db', relief='sunken')
+
+    def on_drag_motion(self, event, item):
+        """드래그 중"""
+        if self.drag_data["item"] is None:
+            return
+
+        # 드래그 중인 아이템만 색상 유지
+        if item == self.drag_data["item"]:
+            item.config(bg='#3498db')
+
+    def on_drag_release(self, event, item, idx):
+        """드롭"""
+        if self.drag_data["item"] is None:
+            return
+
+        # 버튼 클릭은 드래그 무시
+        if event.widget.winfo_class() == 'Button':
+            self.drag_data["item"].config(bg='#ecf0f1', relief='raised')
+            self.drag_data["item"] = None
+            return
+
+        drag_idx = self.drag_data["index"]
+
+        # 드롭 위치 계산
+        children = list(self.flow_list_frame.winfo_children())
+        drop_idx = None
+
+        for i, child in enumerate(children):
+            if child.winfo_y() <= event.y_root - self.flow_list_frame.winfo_rooty() <= child.winfo_y() + child.winfo_height():
+                drop_idx = i
+                break
+
+        if drop_idx is None:
+            # 마지막 위치로 드롭
+            drop_idx = len(children) - 1
+
+        # 드래그 상태 초기화 (UI 새로고침 전에 먼저 해야 함)
+        self.drag_data["item"].config(bg='#ecf0f1', relief='raised')
+        self.drag_data["item"] = None
+
+        # 순서 변경
+        if drag_idx != drop_idx:
+            # flow_manager에서 순서 변경
+            action = self.flow_mgr.flow_sequence.pop(drag_idx)
+            self.flow_mgr.flow_sequence.insert(drop_idx, action)
+
+            # UI 새로고침
+            self.refresh_flow_list()
 
