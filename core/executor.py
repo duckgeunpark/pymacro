@@ -517,7 +517,15 @@ class MacroExecutor:
     def action_key_press(self, params):
         """키 입력"""
         key = params.get('key', '')
-        pyautogui.press(key)
+
+        # 조합키 처리 (예: ctrl+v, shift+a)
+        if '+' in key:
+            keys = key.split('+')
+            pyautogui.hotkey(*keys)
+        else:
+            # 단일 키
+            pyautogui.press(key)
+
         time.sleep(0.2)
     
     def action_hotkey(self, params):

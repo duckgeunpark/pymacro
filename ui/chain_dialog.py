@@ -159,11 +159,14 @@ class MacroChainDialog(tk.Toplevel):
         project_listbox.pack(side='left', fill='both', expand=True)
         scrollbar.config(command=project_listbox.yview)
 
-        # 프로젝트 필터링 (type='project'만 선택)
-        filtered_projects = [proj for proj in projects if proj.get('type') != 'chain']
-
-        for proj in filtered_projects:
-            project_listbox.insert(tk.END, proj['name'])
+        # 모든 프로젝트 표시 (체인과 매크로 구분)
+        for proj in projects:
+            proj_type = proj.get('type', 'project')
+            if proj_type == 'chain':
+                display_name = f"🔗 [체인] {proj['name']}"
+            else:
+                display_name = f"⚙️ [매크로] {proj['name']}"
+            project_listbox.insert(tk.END, display_name)
 
         # 선택된 프로젝트의 실행 설정 표시 영역
         settings_frame = tk.LabelFrame(
@@ -237,7 +240,7 @@ class MacroChainDialog(tk.Toplevel):
         def on_project_select(event):
             selection = project_listbox.curselection()
             if selection:
-                selected_project = filtered_projects[selection[0]]
+                selected_project = projects[selection[0]]
                 import json
 
                 # 프로젝트 파일 로드
@@ -267,7 +270,7 @@ class MacroChainDialog(tk.Toplevel):
             import json
             from core.project_manager import ProjectManager
 
-            selected_project = filtered_projects[selection[0]]
+            selected_project = projects[selection[0]]
 
             # 반복 횟수 검증
             try:

@@ -41,6 +41,7 @@ class ProjectManager:
         return {
             'name': name,
             'description': description,
+            'type': 'project',  # 'project' 또는 'chain' 구분
             'coordinates': [],
             'excel_sources': [],
             'images': [],
@@ -79,7 +80,8 @@ class ProjectManager:
                     projects.append({
                         'name': project_data.get('name', 'Unknown'),
                         'filepath': filepath,
-                        'modified_at': project_data.get('modified_at', '')
+                        'modified_at': project_data.get('modified_at', ''),
+                        'type': project_data.get('type', 'project')  # type 필드 추가
                     })
             except Exception as e:
                 print(f"프로젝트 로드 오류 ({filename}): {e}")

@@ -84,8 +84,8 @@ class ProjectEditor(tk.Frame):
         self.setup_resource_panel(left_frame)
 
         # 우측: 플로우 에디터 (넓게)
-        right_frame = tk.Frame(main_paned, width=450, bg='white')
-        main_paned.add(right_frame, minsize=450)
+        right_frame = tk.Frame(main_paned, width=460, bg='white')
+        main_paned.add(right_frame, minsize=460)
 
         self.setup_flow_panel(right_frame)
 
@@ -217,19 +217,36 @@ class ProjectEditor(tk.Frame):
         # 플로우 리스트 (스크롤 가능)
         list_frame = tk.Frame(parent, bg='white')
         list_frame.pack(fill='both', expand=True, padx=0, pady=10)
-        
+
         canvas = tk.Canvas(list_frame, bg='white', highlightthickness=0)
         scrollbar = tk.Scrollbar(list_frame, orient='vertical', command=canvas.yview)
         self.flow_list_frame = tk.Frame(canvas, bg='white')
-        
-        self.flow_list_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=self.flow_list_frame, anchor='nw')
+
+        canvas_window = canvas.create_window((0, 0), window=self.flow_list_frame, anchor='nw')
+
+        def on_frame_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def on_canvas_configure(event):
+            # 캔버스 너비에 맞춰 프레임 너비 설정
+            canvas_width = event.width
+            canvas.itemconfig(canvas_window, width=canvas_width)
+
+        self.flow_list_frame.bind("<Configure>", on_frame_configure)
+        canvas.bind("<Configure>", on_canvas_configure)
         canvas.configure(yscrollcommand=scrollbar.set)
-        
+
+        # 마우스 휠 스크롤 지원
+        def _on_mousewheel(event):
+            try:
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except tk.TclError:
+                pass
+
+        canvas.bind("<MouseWheel>", _on_mousewheel)
+        self.flow_list_frame.bind("<MouseWheel>", _on_mousewheel)
+
         canvas.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
         
@@ -701,8 +718,10 @@ class ProjectEditor(tk.Frame):
     def add_excel_dialog(self):
         """엑셀 추가 다이얼로그"""
         filepath = filedialog.askopenfilename(
+            parent=self.parent,
             title="엑셀 파일 선택",
-            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
+            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
+            initialdir=os.path.expanduser("~")
         )
         
         if not filepath:
@@ -1096,8 +1115,10 @@ class ProjectEditor(tk.Frame):
     def add_image_from_file(self):
         """파일에서 이미지 추가"""
         filepath = filedialog.askopenfilename(
+            parent=self.parent,
             title="이미지 파일 선택",
-            filetypes=[("Image files", "*.png *.jpg *.jpeg"), ("All files", "*.*")]
+            filetypes=[("Image files", "*.png *.jpg *.jpeg"), ("All files", "*.*")],
+            initialdir=os.path.expanduser("~")
         )
         
         if not filepath:

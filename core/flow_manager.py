@@ -122,7 +122,10 @@ class FlowManager:
         
         elif action_type == 'type_text':
             text = params.get('text', '')
-            return f"[타이핑] {text[:30]}..."
+            if len(text) > 12:
+                return f"[타이핑] {text[:12]}..."
+            else:
+                return f"[타이핑] {text}"
         
         elif action_type == 'type_variable':
             var_type = params.get('var_type')  # excel, counter, timestamp
@@ -171,7 +174,10 @@ class FlowManager:
         
         elif action_type == 'memo':
             text = params.get('text', '')
-            return f"[메모] {text[:50]}..."
+            if len(text) > 50:
+                return f"[메모] {text[:50]}..."
+            else:
+                return f"[메모] {text}"
         
         else:
             return f"[알 수 없는 액션] {action_type}"

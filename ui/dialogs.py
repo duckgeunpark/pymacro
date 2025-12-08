@@ -70,30 +70,16 @@ class NewProjectDialog(tk.Toplevel):
         # self.desc_text.pack(fill='x', pady=(0, 20))
         
         # 버튼
-        btn_frame = tk.Frame(main_frame)
-        btn_frame.pack()
-        
         tk.Button(
-            btn_frame,
-            text="생성",
+            main_frame,
+            text="확인",
             font=("맑은 고딕", 10),
             bg='#3498db',
             fg='white',
             padx=20,
             pady=5,
             command=self.on_create
-        ).pack(side='left', padx=3)
-        
-        tk.Button(
-            btn_frame,
-            text="취소",
-            font=("맑은 고딕", 10),
-            bg='#95a5a6',
-            fg='white',
-            padx=20,
-            pady=5,
-            command=self.on_cancel
-        ).pack(side='left', padx=3)
+        ).pack(pady=10)
         
         # Enter 키 바인딩
         self.name_entry.bind('<Return>', lambda e: self.on_create())
@@ -175,7 +161,7 @@ class NameInputDialog(tk.Toplevel):
             text=message,
             font=("맑은 고딕", 11, "bold")
         ).pack(pady=20)
-        
+
         # 입력 필드
         self.entry = tk.Entry(
             self,
@@ -183,39 +169,45 @@ class NameInputDialog(tk.Toplevel):
             width=35
         )
         self.entry.pack(padx=30, pady=10)
-        
+
+        # 글자 수 제한 (10자)
+        self.entry.bind('<KeyRelease>', self.on_name_change)
+
         if initial_value:
             self.entry.insert(0, initial_value)
             self.entry.select_range(0, tk.END)
-        
+
         self.entry.focus_set()
-        
+
+    def on_name_change(self, event=None):
+        """이름 입력 시 길이 제한 (한글 6자, 숫자/영문 12자)"""
+        current_text = self.entry.get()
+
+        # 한글 글자 수 계산
+        korean_count = sum(1 for char in current_text if ord('가') <= ord(char) <= ord('힣') or ord('ㄱ') <= ord(char) <= ord('ㅣ'))
+        # 나머지 문자 수 (숫자, 영문 등)
+        other_count = len(current_text) - korean_count
+
+        # 한글은 2 비중, 나머지는 1 비중으로 계산
+        total_weight = korean_count * 2 + other_count
+
+        # 총 비중이 12를 초과하면 (한글 6자 또는 숫자/영문 12자)
+        if total_weight > 12:
+            # 마지막 입력 제거
+            self.entry.delete(len(current_text) - 1, tk.END)
+
         # 버튼
-        btn_frame = tk.Frame(self)
-        btn_frame.pack(pady=20)
-        
         tk.Button(
-            btn_frame,
+            self,
             text="확인",
             font=("맑은 고딕", 10),
-            bg='#27ae60',
+            bg='#3498db',
             fg='white',
             padx=25,
             pady=8,
             command=self.on_ok
-        ).pack(side='left', padx=5)
-        
-        tk.Button(
-            btn_frame,
-            text="취소",
-            font=("맑은 고딕", 10),
-            bg='#95a5a6',
-            fg='white',
-            padx=25,
-            pady=8,
-            command=self.on_cancel
-        ).pack(side='left', padx=5)
-        
+        ).pack(pady=20)
+
         # Enter 키로 확인
         self.entry.bind('<Return>', lambda e: self.on_ok())
         self.entry.bind('<Escape>', lambda e: self.on_cancel())
@@ -332,32 +324,18 @@ class KeyInputDialog(tk.Toplevel):
         ).pack(anchor='w', pady=(0, 15))
         
         # 버튼
-        btn_frame = tk.Frame(main_frame)
-        btn_frame.pack(fill='x')
-        
         self.confirm_btn = tk.Button(
-            btn_frame,
+            main_frame,
             text="확인",
             font=("맑은 고딕", 10),
-            bg='#27ae60',
+            bg='#3498db',
             fg='white',
             padx=20,
             pady=8,
             command=self.on_ok,
             state='disabled'
         )
-        self.confirm_btn.pack(side='left', expand=True, padx=(0, 5))
-        
-        tk.Button(
-            btn_frame,
-            text="취소",
-            font=("맑은 고딕", 10),
-            bg='#95a5a6',
-            fg='white',
-            padx=20,
-            pady=8,
-            command=self.on_cancel
-        ).pack(side='left', expand=True, padx=(5, 0))
+        self.confirm_btn.pack(pady=10)
         
         # 키 이벤트 바인드
         self.bind('<KeyPress>', self.on_key_press)
@@ -709,7 +687,7 @@ class ActionSelectDialog(tk.Toplevel):
     
         dialog = tk.Toplevel(self)
         dialog.title("좌표 클릭 설정")
-        dialog.geometry("300x300")
+        dialog.geometry("300x220")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -721,7 +699,7 @@ class ActionSelectDialog(tk.Toplevel):
             dialog,
             text="좌표 선택:",
             font=("맑은 고딕", 10, "bold")
-        ).pack(anchor='w', padx=20, pady=(20, 5))
+        ).pack(anchor='w', padx=20, pady=(10, 5))
         
         coord_var = tk.StringVar()
         coord_combo = ttk.Combobox(
@@ -733,26 +711,34 @@ class ActionSelectDialog(tk.Toplevel):
         coord_values = [f"{c['id']}. {c['name']}" for c in self.coord_mgr.coordinates]
         coord_combo['values'] = coord_values
         coord_combo.current(0)
-        coord_combo.pack(fill='x', padx=20, pady=(0, 15))
+        coord_combo.pack(fill='x', padx=20, pady=(0, 10))
         
+
+        click_frame = tk.Frame(dialog)
+        click_frame.pack(fill='x', padx=20, pady=(10, 5))
+
         tk.Label(
-            dialog,
+            click_frame,
             text="클릭 유형:",
-            font=("맑은 고딕", 10, "bold")
-        ).pack(anchor='w', padx=20, pady=(10, 5))
+            font=("맑은 고딕", 10, "bold"),
+            width=10,
+            anchor='w'
+        ).pack(side='left')
 
         click_var = tk.StringVar(value='left')
-        tk.Radiobutton(dialog, text="좌클릭", variable=click_var, value='left').pack(anchor='w', padx=40)
-        tk.Radiobutton(dialog, text="우클릭", variable=click_var, value='right').pack(anchor='w', padx=40)
-
-        tk.Label(
-            dialog,
-            text="클릭 횟수:",
-            font=("맑은 고딕", 10, "bold")
-        ).pack(anchor='w', padx=20, pady=(10, 5))
+        tk.Radiobutton(click_frame, text="좌클릭", variable=click_var, value='left').pack(side='left', padx=5)
+        tk.Radiobutton(click_frame, text="우클릭", variable=click_var, value='right').pack(side='left', padx=5)
 
         count_frame = tk.Frame(dialog)
-        count_frame.pack(fill='x', padx=20, pady=(0, 10))
+        count_frame.pack(fill='x', padx=20, pady=(10, 5))
+
+        tk.Label(
+            count_frame,
+            text="클릭 횟수:",
+            font=("맑은 고딕", 10, "bold"),
+            width=10,
+            anchor='w'
+        ).pack(side='left')
 
         count_var = tk.IntVar(value=1)
         count_spinbox = tk.Spinbox(
@@ -813,7 +799,7 @@ class ActionSelectDialog(tk.Toplevel):
         """마우스 스크롤 설정"""
         dialog = tk.Toplevel(self)
         dialog.title("마우스 스크롤 설정")
-        dialog.geometry("400x160")
+        dialog.geometry("250x140")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -823,7 +809,7 @@ class ActionSelectDialog(tk.Toplevel):
 
         # 스크롤 방향 (한 줄)
         direction_frame = tk.Frame(dialog)
-        direction_frame.pack(fill='x', padx=20, pady=(20, 10))
+        direction_frame.pack(fill='x', padx=20, pady=(10, 10))
 
         tk.Label(
             direction_frame,
@@ -859,12 +845,6 @@ class ActionSelectDialog(tk.Toplevel):
             width=10
         ).pack(side='left')
 
-        tk.Label(
-            amount_frame,
-            text=" (클수록 많이 스크롤)",
-            font=("맑은 고딕", 9)
-        ).pack(side='left')
-
         def on_ok():
             direction = direction_var.get()
             amount = amount_var.get()
@@ -883,7 +863,7 @@ class ActionSelectDialog(tk.Toplevel):
             fg='white',
             padx=20,
             pady=5
-        ).pack(pady=20)
+        ).pack(pady=(10))
 
         # 중앙 배치 및 포커스
         dialog.update_idletasks()
@@ -1010,12 +990,9 @@ class ActionSelectDialog(tk.Toplevel):
         
         def on_cancel():
             dialog.destroy()
-        
-        btn_frame = tk.Frame(dialog)
-        btn_frame.pack(pady=15)
-        
+
         tk.Button(
-            btn_frame,
+            dialog,
             text="확인",
             font=("맑은 고딕", 10),
             bg='#3498db',
@@ -1023,19 +1000,8 @@ class ActionSelectDialog(tk.Toplevel):
             padx=20,
             pady=8,
             command=on_ok
-        ).pack(side='left', padx=5)
-        
-        tk.Button(
-            btn_frame,
-            text="취소",
-            font=("맑은 고딕", 10),
-            bg='#95a5a6',
-            fg='white',
-            padx=20,
-            pady=8,
-            command=on_cancel
-        ).pack(side='left', padx=5)
-        
+        ).pack(pady=15)
+
         text_entry.bind('<Return>', lambda e: on_ok())
         text_entry.bind('<Escape>', lambda e: on_cancel())
         
@@ -1066,7 +1032,7 @@ class ActionSelectDialog(tk.Toplevel):
 
         dialog = tk.Toplevel(self)
         dialog.title("변수 타이핑 설정")
-        dialog.geometry("400x520")
+        dialog.geometry("400x430")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -1081,9 +1047,12 @@ class ActionSelectDialog(tk.Toplevel):
         ).pack(anchor='w', padx=20, pady=(20, 5))
 
         var_type = tk.StringVar(value='excel')
-        tk.Radiobutton(dialog, text="엑셀 데이터", variable=var_type, value='excel').pack(anchor='w', padx=40)
-        tk.Radiobutton(dialog, text="현재 행 번호", variable=var_type, value='counter').pack(anchor='w', padx=40)
-        tk.Radiobutton(dialog, text="타임스탬프", variable=var_type, value='timestamp').pack(anchor='w', padx=40)
+        radio_frame = tk.Frame(dialog)
+        radio_frame.pack(anchor='w', padx=40, pady=5)
+
+        tk.Radiobutton(radio_frame, text="엑셀 데이터", variable=var_type, value='excel').pack(side='left', padx=5)
+        tk.Radiobutton(radio_frame, text="현재 행 번호", variable=var_type, value='counter').pack(side='left', padx=5)
+        tk.Radiobutton(radio_frame, text="타임스탬프", variable=var_type, value='timestamp').pack(side='left', padx=5)
 
         # 엑셀 소스 선택 (다중 엑셀 지원)
         tk.Label(
@@ -1202,7 +1171,7 @@ class ActionSelectDialog(tk.Toplevel):
             fg='white',
             padx=20,
             pady=5
-        ).pack(pady=20)
+        ).pack(pady=10)
 
         # 중앙 배치 및 포커스
         dialog.update_idletasks()
@@ -1424,12 +1393,9 @@ class ActionSelectDialog(tk.Toplevel):
         
         def on_cancel():
             dialog.destroy()
-        
-        btn_frame = tk.Frame(dialog)
-        btn_frame.pack(pady=15)
-        
+
         tk.Button(
-            btn_frame,
+            dialog,
             text="확인",
             font=("맑은 고딕", 10),
             bg='#3498db',
@@ -1437,19 +1403,8 @@ class ActionSelectDialog(tk.Toplevel):
             padx=20,
             pady=8,
             command=on_ok
-        ).pack(side='left', padx=5)
-        
-        tk.Button(
-            btn_frame,
-            text="취소",
-            font=("맑은 고딕", 10),
-            bg='#95a5a6',
-            fg='white',
-            padx=20,
-            pady=8,
-            command=on_cancel
-        ).pack(side='left', padx=5)
-        
+        ).pack(pady=15)
+
         filename_entry.bind('<Return>', lambda e: on_ok())
         filename_entry.bind('<Escape>', lambda e: on_cancel())
         

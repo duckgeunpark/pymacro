@@ -251,7 +251,7 @@ class StartScreen(tk.Frame):
 
         # 우측 버튼 영역
         button_frame = tk.Frame(card, bg='#ecf0f1')
-        button_frame.pack(side='right', padx=(30,20), pady=10)
+        button_frame.pack(side='right', padx=(30,20), pady=5)
 
         # 열기 버튼
         open_text = "실행" if item_type == 'chain' else "열기"
