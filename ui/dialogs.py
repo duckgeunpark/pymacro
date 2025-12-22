@@ -12,7 +12,7 @@ class NewProjectDialog(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("새 프로젝트")
-        self.geometry("300x140")
+        self.geometry("300x130")
         self.resizable(False, False)
         
         self.result = None
@@ -33,7 +33,7 @@ class NewProjectDialog(tk.Toplevel):
     def setup_ui(self):
         """UI 구성"""
         # 메인 프레임
-        main_frame = tk.Frame(self, padx=20, pady=20)
+        main_frame = tk.Frame(self, padx=20, pady=10)
         main_frame.pack(fill='both', expand=True)
         
         # 프로젝트 이름
@@ -46,9 +46,9 @@ class NewProjectDialog(tk.Toplevel):
         self.name_entry = tk.Entry(
             main_frame,
             font=("맑은 고딕", 10),
-            width=40
+            width=45
         )
-        self.name_entry.pack(fill='x', pady=(0, 15))
+        self.name_entry.pack(fill='x', pady=(0, 5))
         self.name_entry.focus()
 
         # 글자 수 제한 (14자)
@@ -79,7 +79,7 @@ class NewProjectDialog(tk.Toplevel):
             padx=20,
             pady=5,
             command=self.on_create
-        ).pack(pady=10)
+        ).pack(pady=(10, 5))
         
         # Enter 키 바인딩
         self.name_entry.bind('<Return>', lambda e: self.on_create())
@@ -179,6 +179,22 @@ class NameInputDialog(tk.Toplevel):
 
         self.entry.focus_set()
 
+        # 버튼
+        tk.Button(
+            self,
+            text="확인",
+            font=("맑은 고딕", 10),
+            bg='#3498db',
+            fg='white',
+            padx=25,
+            pady=8,
+            command=self.on_ok
+        ).pack(pady=20)
+
+        # Enter 키로 확인
+        self.entry.bind('<Return>', lambda e: self.on_ok())
+        self.entry.bind('<Escape>', lambda e: self.on_cancel())
+
     def on_name_change(self, event=None):
         """이름 입력 시 길이 제한 (한글 6자, 숫자/영문 12자)"""
         current_text = self.entry.get()
@@ -195,22 +211,6 @@ class NameInputDialog(tk.Toplevel):
         if total_weight > 12:
             # 마지막 입력 제거
             self.entry.delete(len(current_text) - 1, tk.END)
-
-        # 버튼
-        tk.Button(
-            self,
-            text="확인",
-            font=("맑은 고딕", 10),
-            bg='#3498db',
-            fg='white',
-            padx=25,
-            pady=8,
-            command=self.on_ok
-        ).pack(pady=20)
-
-        # Enter 키로 확인
-        self.entry.bind('<Return>', lambda e: self.on_ok())
-        self.entry.bind('<Escape>', lambda e: self.on_cancel())
     
     def on_ok(self):
         """확인 버튼"""
@@ -227,13 +227,150 @@ class NameInputDialog(tk.Toplevel):
         self.result = None
         self.destroy()
 
+class ImageNameDialog(tk.Toplevel):
+    """이미지 이름 및 정확도 입력 다이얼로그"""
+
+    def __init__(self, parent, title="이미지 이름", initial_name="", initial_confidence=80):
+        super().__init__(parent)
+        self.title(title)
+        self.geometry("350x220")
+        self.resizable(False, False)
+
+        self.result = None  # {'name': str, 'confidence': float}
+
+        # 모달 설정
+        self.transient(parent)
+        self.grab_set()
+        self.attributes('-topmost', True)
+
+        set_dialog_icon(self)
+
+        self.setup_ui(initial_name, initial_confidence)
+        center_window_on_parent(self, self.master)
+
+        # 포커스
+        self.lift()
+        self.focus_force()
+
+    def setup_ui(self, initial_name, initial_confidence):
+        """UI 구성"""
+        main_frame = tk.Frame(self, padx=20, pady=15)
+        main_frame.pack(fill='both', expand=True)
+
+        # 이름 입력
+        tk.Label(
+            main_frame,
+            text="이미지 이름:",
+            font=("맑은 고딕", 10, "bold")
+        ).pack(anchor='w', pady=(5, 5))
+
+        self.name_entry = tk.Entry(
+            main_frame,
+            font=("맑은 고딕", 10),
+            width=30
+        )
+        self.name_entry.pack(fill='x', pady=(0, 15))
+
+        if initial_name:
+            self.name_entry.insert(0, initial_name)
+
+        self.name_entry.focus_set()
+
+        # 정확도 입력
+        confidence_frame = tk.Frame(main_frame)
+        confidence_frame.pack(fill='x', pady=(0, 20))
+
+        tk.Label(
+            confidence_frame,
+            text="정확도:",
+            font=("맑은 고딕", 10, "bold"),
+            width=8,
+            anchor='w'
+        ).pack(side='left')
+
+        self.confidence_var = tk.IntVar(value=initial_confidence)
+
+        confidence_spinbox = tk.Spinbox(
+            confidence_frame,
+            from_=50,
+            to=100,
+            textvariable=self.confidence_var,
+            font=("맑은 고딕", 10),
+            width=10
+        )
+        confidence_spinbox.pack(side='left', padx=5)
+
+        tk.Label(
+            confidence_frame,
+            text="%",
+            font=("맑은 고딕", 10)
+        ).pack(side='left')
+
+        tk.Label(
+            confidence_frame,
+            text="(50-100)",
+            font=("맑은 고딕", 8),
+            fg='gray'
+        ).pack(side='left', padx=5)
+
+        # 버튼
+        btn_frame = tk.Frame(main_frame)
+        btn_frame.pack()
+
+        tk.Button(
+            btn_frame,
+            text="확인",
+            font=("맑은 고딕", 10),
+            bg='#3498db',
+            fg='white',
+            padx=25,
+            pady=8,
+            command=self.on_ok
+        ).pack(side='left', padx=5)
+
+        tk.Button(
+            btn_frame,
+            text="취소",
+            font=("맑은 고딕", 10),
+            bg='#95a5a6',
+            fg='white',
+            padx=25,
+            pady=8,
+            command=self.on_cancel
+        ).pack(side='left', padx=5)
+
+        # Enter 키로 확인
+        self.name_entry.bind('<Return>', lambda e: self.on_ok())
+        self.bind('<Escape>', lambda e: self.on_cancel())
+
+    def on_ok(self):
+        """확인 버튼"""
+        name = self.name_entry.get().strip()
+        if not name:
+            messagebox.showwarning("경고", "이미지 이름을 입력하세요.", parent=self)
+            return
+
+        confidence = self.confidence_var.get()
+
+        self.result = {
+            'name': name,
+            'confidence': confidence / 100.0  # 0.5 ~ 1.0으로 변환
+        }
+        self.destroy()
+
+    def on_cancel(self):
+        """취소 버튼"""
+        self.result = None
+        self.destroy()
+
+
 class KeyInputDialog(tk.Toplevel):
     """키 입력 감지 다이얼로그"""
     
     def __init__(self, parent):
         super().__init__(parent)
         self.title("키 입력")
-        self.geometry("300x270")
+        self.geometry("300x200")
         self.resizable(False, False)
         
         self.result = None
@@ -285,7 +422,7 @@ class KeyInputDialog(tk.Toplevel):
     
     def setup_ui(self):
         """UI 구성"""
-        main_frame = tk.Frame(self, padx=20, pady=20)
+        main_frame = tk.Frame(self, padx=10, pady=10)
         main_frame.pack(fill='both', expand=True)
         
         # 설명
@@ -293,14 +430,14 @@ class KeyInputDialog(tk.Toplevel):
             main_frame,
             text="입력할 키를 누르세요",
             font=("맑은 고딕", 12, "bold")
-        ).pack(pady=(0, 20))
+        ).pack(pady=(0, 10))
         
         # 입력한 키 표시
-        tk.Label(
-            main_frame,
-            text="입력된 키:",
-            font=("맑은 고딕", 11)
-        ).pack(anchor='w', pady=(0, 5))
+        # tk.Label(
+        #     main_frame,
+        #     text="입력된 키:",
+        #     font=("맑은 고딕", 11)
+        # ).pack(anchor='w', pady=(0, 5))
         
         self.key_display = tk.Label(
             main_frame,
@@ -308,12 +445,12 @@ class KeyInputDialog(tk.Toplevel):
             font=("맑은 고딕", 14, "bold"),
             bg='#ecf0f1',
             fg='#3498db',
-            padx=20,
-            pady=15,
+            padx=15,
+            pady=10,
             relief='sunken',
             borderwidth=2
         )
-        self.key_display.pack(fill='x', pady=(0, 20))
+        self.key_display.pack(fill='x', pady=(0, 10))
         
         # 도움말
         tk.Label(
@@ -321,7 +458,7 @@ class KeyInputDialog(tk.Toplevel):
             text="예: enter, tab, esc, space, f1, f11 등",
             font=("맑은 고딕", 9),
             fg='#7f8c8d'
-        ).pack(anchor='w', pady=(0, 15))
+        ).pack(anchor='w', pady=(0, 10))
         
         # 버튼
         self.confirm_btn = tk.Button(
@@ -331,7 +468,7 @@ class KeyInputDialog(tk.Toplevel):
             bg='#3498db',
             fg='white',
             padx=20,
-            pady=8,
+            pady=5,
             command=self.on_ok,
             state='disabled'
         )
@@ -490,22 +627,13 @@ class ActionSelectDialog(tk.Toplevel):
         
         # 아이콘 설정 (추가)
         set_dialog_icon(self)
-        
+
         self.setup_ui()
-        self.center_window()
-        
+        center_window_on_parent(self, parent)
+
         # 포커스
         self.lift()
         self.focus_force()
-    
-    def center_window(self):
-        """창 중앙 배치"""
-        self.update_idletasks()
-        width = self.winfo_width()
-        height = self.winfo_height()
-        x = (self.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
-        self.geometry(f'{width}x{height}+{x}+{y}')
     
     def setup_ui(self):
         """UI 구성"""
@@ -1360,6 +1488,26 @@ class ActionSelectDialog(tk.Toplevel):
         
     def config_screenshot(self):
         """스크린샷 설정"""
+        # Step 1: 영역 설정 모드 선택 (전체 or 선택)
+        region_mode_dialog = ScreenshotRegionModeDialog(self)
+        self.wait_window(region_mode_dialog)
+
+        mode = region_mode_dialog.result
+        if not mode:  # 취소
+            return None
+
+        region_data = None
+
+        # Step 2: 선택 모드인 경우 영역 선택
+        if mode == 'region':
+            region_selector = ScreenRegionSelectorDialog(self)
+            self.wait_window(region_selector)
+
+            region_data = region_selector.result
+            if not region_data:  # 취소
+                return None
+
+        # Step 3: 파일명 입력
         dialog = tk.Toplevel(self)
         dialog.title("스크린샷")
         dialog.geometry("300x200")
@@ -1368,29 +1516,35 @@ class ActionSelectDialog(tk.Toplevel):
         dialog.grab_set()
         dialog.attributes('-topmost', True)
         set_dialog_icon(dialog)
-        
+
         result = [None]
-        
+
         tk.Label(
             dialog,
             text="파일명 (자동으로 타임스탬프 추가):",
             font=("맑은 고딕", 11, "bold")
         ).pack(pady=20)
-        
+
         filename_entry = tk.Entry(dialog, font=("맑은 고딕", 11), width=40)
         filename_entry.insert(0, "screenshot")
         filename_entry.pack(padx=20, pady=10, fill='x')
         filename_entry.select_range(0, tk.END)
         filename_entry.focus()
-        
+
         def on_ok():
             filename = filename_entry.get().strip()
             if not filename:
                 messagebox.showwarning("경고", "파일명을 입력하세요.", parent=dialog)
                 return
-            result[0] = {'filename': filename}  # 타임스탬프는 실행 시점에 추가
+
+            # 파일명과 영역 데이터를 함께 반환
+            result[0] = {
+                'filename': filename,
+                'mode': mode,
+                'region': region_data  # None (전체) 또는 {'x', 'y', 'width', 'height'}
+            }
             dialog.destroy()
-        
+
         def on_cancel():
             dialog.destroy()
 
@@ -1407,7 +1561,7 @@ class ActionSelectDialog(tk.Toplevel):
 
         filename_entry.bind('<Return>', lambda e: on_ok())
         filename_entry.bind('<Escape>', lambda e: on_cancel())
-        
+
         # 중앙 배치 및 포커스
         dialog.update_idletasks()
         width = dialog.winfo_width()
@@ -1419,11 +1573,428 @@ class ActionSelectDialog(tk.Toplevel):
         x = parent_x + (parent_width - width) // 2
         y = parent_y + (parent_height - height) // 2
         dialog.geometry(f'{width}x{height}+{x}+{y}')
-        
+
         dialog.lift()
         dialog.focus_force()
-        
+
         self.wait_window(dialog)
         return result[0]
 
 
+class ScreenshotRegionModeDialog(tk.Toplevel):
+    """스크린샷 영역 모드 선택 다이얼로그"""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("스크린샷 영역 설정")
+        self.geometry("300x180")
+        self.resizable(False, False)
+
+        self.result = None  # 'full' or 'region'
+
+        # 모달 설정
+        self.transient(parent)
+        self.grab_set()
+        self.attributes('-topmost', True)
+        set_dialog_icon(self)
+
+        self.setup_ui()
+        center_window_on_parent(self, parent)
+
+        # 포커스
+        self.lift()
+        self.focus_force()
+
+    def setup_ui(self):
+        """UI 구성"""
+        main_frame = tk.Frame(self, padx=20, pady=20)
+        main_frame.pack(fill='both', expand=True)
+
+        # 제목
+        tk.Label(
+            main_frame,
+            text="📸 스크린샷 영역 설정",
+            font=("맑은 고딕", 12, "bold")
+        ).pack(pady=(0, 15))
+
+        # 설명
+        tk.Label(
+            main_frame,
+            text="스크린샷 영역을 선택하세요.",
+            font=("맑은 고딕", 9),
+            fg='#7f8c8d'
+        ).pack(pady=(0, 15))
+
+        # 버튼 프레임
+        btn_frame = tk.Frame(main_frame)
+        btn_frame.pack(fill='x')
+
+        # 전체 화면 버튼
+        tk.Button(
+            btn_frame,
+            text="🖥️ 전체 화면",
+            font=("맑은 고딕", 11),
+            bg='#3498db',
+            fg='white',
+            padx=20,
+            pady=10,
+            command=self.select_full
+        ).pack(side='left', expand=True, fill='x', padx=(0, 5))
+
+        # 영역 선택 버튼
+        tk.Button(
+            btn_frame,
+            text="🎯 영역 선택",
+            font=("맑은 고딕", 11),
+            bg='#27ae60',
+            fg='white',
+            padx=20,
+            pady=10,
+            command=self.select_region
+        ).pack(side='left', expand=True, fill='x', padx=(5, 0))
+
+    def select_full(self):
+        """전체 화면 선택"""
+        self.result = 'full'
+        self.destroy()
+
+    def select_region(self):
+        """영역 선택"""
+        self.result = 'region'
+        self.destroy()
+
+
+class ScreenRegionSelectorDialog(tk.Toplevel):
+    """화면 영역 선택 오버레이"""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("영역 선택")
+
+        self.result = None  # {'x': int, 'y': int, 'width': int, 'height': int}
+
+        # 부모 윈도우와 메인 윈도우 찾기
+        self.parent_window = parent
+
+        # 실제 root 윈도우(Tk 인스턴스) 찾기
+        current = parent
+        while current.master:
+            current = current.master
+        self.main_window = current
+
+        # 윈도우를 숨긴 상태로 시작
+        self.withdraw()
+
+        # 윈도우 초기화 후 최소화 및 UI 구성
+        self.after(100, self.minimize_and_setup)
+
+    def minimize_and_setup(self):
+        """윈도우 최소화 후 UI 구성"""
+        try:
+            # 부모 윈도우들 업데이트
+            self.update_idletasks()
+            self.parent_window.update_idletasks()
+            self.main_window.update_idletasks()
+
+            # 모든 윈도우 최소화 (액션 다이얼로그 + 메인 윈도우)
+            self.parent_window.withdraw()  # 액션 다이얼로그 숨기기
+            self.main_window.iconify()  # 메인 윈도우 최소화
+
+            # 최소화가 적용될 시간 대기 후 UI 구성 (200ms)
+            self.after(200, self.setup_ui)
+        except Exception as e:
+            print(f"[WARNING] 윈도우 최소화 오류: {e}")
+            # 오류 발생 시에도 UI는 구성
+            self.after(200, self.setup_ui)
+
+    def setup_ui(self):
+        """UI 구성 (최소화 후 실행)"""
+        # 전체 화면 크기
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+
+        # 전체 화면 크기로 설정
+        self.geometry(f"{screen_width}x{screen_height}+0+0")
+        self.attributes('-topmost', True)
+        self.attributes('-alpha', 0.3)  # 반투명
+        self.configure(bg='gray')
+        self.overrideredirect(True)  # 타이틀바 제거
+
+        # 드래그 변수
+        self.start_x = None
+        self.start_y = None
+        self.rect = None
+
+        # 캔버스 생성
+        self.canvas = tk.Canvas(
+            self,
+            width=screen_width,
+            height=screen_height,
+            bg='gray',
+            highlightthickness=0,
+            cursor='crosshair'
+        )
+        self.canvas.pack(fill='both', expand=True)
+
+        # 안내 텍스트
+        self.canvas.create_text(
+            screen_width // 2,
+            30,
+            text="드래그하여 영역을 선택하세요 (ESC: 취소)",
+            font=("맑은 고딕", 14, "bold"),
+            fill='white'
+        )
+
+        # 이벤트 바인딩
+        self.canvas.bind('<Button-1>', self.on_mouse_down)
+        self.canvas.bind('<B1-Motion>', self.on_mouse_move)
+        self.canvas.bind('<ButtonRelease-1>', self.on_mouse_up)
+        self.bind('<Escape>', lambda e: self.cancel())
+
+        # 윈도우 표시 및 포커스
+        self.deiconify()
+        self.lift()
+        self.focus_force()
+
+    def on_mouse_down(self, event):
+        """마우스 다운"""
+        self.start_x = event.x
+        self.start_y = event.y
+
+        # 기존 사각형 제거
+        if self.rect:
+            self.canvas.delete(self.rect)
+
+    def on_mouse_move(self, event):
+        """마우스 드래그"""
+        if self.start_x is None or self.start_y is None:
+            return
+
+        # 기존 사각형 제거
+        if self.rect:
+            self.canvas.delete(self.rect)
+
+        # 새 사각형 그리기
+        self.rect = self.canvas.create_rectangle(
+            self.start_x, self.start_y, event.x, event.y,
+            outline='red',
+            width=2,
+            fill=''
+        )
+
+    def on_mouse_up(self, event):
+        """마우스 업"""
+        if self.start_x is None or self.start_y is None:
+            return
+
+        end_x = event.x
+        end_y = event.y
+
+        # 좌표 정규화 (왼쪽 위가 시작점이 되도록)
+        x1 = min(self.start_x, end_x)
+        y1 = min(self.start_y, end_y)
+        x2 = max(self.start_x, end_x)
+        y2 = max(self.start_y, end_y)
+
+        width = x2 - x1
+        height = y2 - y1
+
+        # 최소 크기 체크 (10x10 이상)
+        if width < 10 or height < 10:
+            messagebox.showwarning("경고", "영역이 너무 작습니다. 다시 선택해주세요.")
+            self.start_x = None
+            self.start_y = None
+            if self.rect:
+                self.canvas.delete(self.rect)
+            return
+
+        # 결과 저장
+        self.result = {
+            'x': x1,
+            'y': y1,
+            'width': width,
+            'height': height
+        }
+
+        # 메인 윈도우 복원 후 닫기
+        self.restore_main_window()
+        self.destroy()
+
+    def cancel(self):
+        """취소"""
+        self.result = None
+        # 메인 윈도우 복원 후 닫기
+        self.restore_main_window()
+        self.destroy()
+
+    def restore_main_window(self):
+        """메인 윈도우 및 부모 윈도우 복원"""
+        try:
+            # 메인 윈도우 복원
+            self.main_window.deiconify()
+            self.main_window.lift()
+
+            # 액션 다이얼로그 복원
+            self.parent_window.deiconify()
+            self.parent_window.lift()
+            self.parent_window.focus_force()
+        except Exception as e:
+            print(f"[WARNING] 윈도우 복원 오류: {e}")
+
+
+class AutostartSelectDialog(tk.Toplevel):
+    """자동시작 프로젝트 선택 다이얼로그"""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("자동시작 설정")
+        self.geometry("250x180")
+        self.resizable(False, False)
+
+        self.result = None
+
+        # 모달 설정
+        self.transient(parent)
+        self.grab_set()
+        self.attributes('-topmost', True)
+        set_dialog_icon(self)
+
+        self.setup_ui()
+        center_window_on_parent(self, parent)
+
+        # 포커스
+        self.lift()
+        self.focus_force()
+
+    def setup_ui(self):
+        """UI 구성"""
+        main_frame = tk.Frame(self, padx=20, pady=20)
+        main_frame.pack(fill='both', expand=True)
+
+        # 제목
+        tk.Label(
+            main_frame,
+            text="🚀 자동시작 프로젝트 설정",
+            font=("맑은 고딕", 13, "bold")
+        ).pack(pady=(0, 10))
+
+        # 설명
+        tk.Label(
+            main_frame,
+            text="자동실행할 프로젝트를 선택하세요.",
+            font=("맑은 고딕", 9),
+            fg='#7f8c8d'
+        ).pack(pady=(0, 15))
+
+        # 콤보박스 프레임
+        combo_frame = tk.Frame(main_frame)
+        combo_frame.pack(fill='x', pady=(0, 15))
+
+        self.project_var = tk.StringVar()
+        self.project_combo = ttk.Combobox(
+            combo_frame,
+            textvariable=self.project_var,
+            font=("맑은 고딕", 10),
+            state='readonly'
+        )
+        self.project_combo.pack(side='left', fill='x', expand=True)
+
+        # 프로젝트 목록 로드
+        self.load_projects()
+
+        # 버튼 프레임
+        btn_frame = tk.Frame(main_frame)
+        btn_frame.pack(fill='x')
+
+        # 확인 버튼
+        tk.Button(
+            btn_frame,
+            text="확인",
+            font=("맑은 고딕", 10),
+            bg='#3498db',
+            fg='white',
+            padx=20,
+            pady=8,
+            command=self.on_ok
+        ).pack(side='left', padx=(0, 5), expand=True, fill='x')
+
+        # 취소 버튼
+        tk.Button(
+            btn_frame,
+            text="취소",
+            font=("맑은 고딕", 10),
+            bg='#95a5a6',
+            fg='white',
+            padx=20,
+            pady=8,
+            command=self.on_cancel
+        ).pack(side='left', padx=(5, 0), expand=True, fill='x')
+
+    def load_projects(self):
+        """프로젝트 및 체인 목록 로드"""
+        from core.project_manager import ProjectManager
+        import json
+
+        projects = ProjectManager.get_project_list()
+        self.projects = projects
+
+        # 현재 자동시작 설정 읽기
+        current_autostart = None
+        try:
+            with open('settings.json', 'r', encoding='utf-8') as f:
+                settings = json.load(f)
+                current_autostart = settings.get('autostart')
+        except:
+            pass
+
+        # 콤보박스 항목 리스트
+        combo_items = ["없음"]
+        selected_index = 0
+
+        if projects:
+            for idx, project in enumerate(projects):
+                # 프로젝트와 체인 모두 표시
+                item_type = project.get('type', 'project')
+                icon = "🔗" if item_type == 'chain' else "📁"
+                display_text = f"{icon} {project['name']}"
+
+                combo_items.append(display_text)
+
+                # 현재 자동시작 프로젝트인지 확인
+                if current_autostart and project['filepath'] == current_autostart:
+                    selected_index = idx + 1  # "없음" 다음 인덱스
+
+        # 콤보박스 설정
+        self.project_combo['values'] = combo_items
+        self.project_combo.current(selected_index)
+
+    def on_ok(self):
+        """확인 버튼"""
+        selected_index = self.project_combo.current()
+
+        # "없음" 선택
+        if selected_index == 0:
+            self.result = {'filepath': None, 'name': None}
+            self.destroy()
+            return
+
+        # 프로젝트/체인 선택
+        if not self.projects or selected_index - 1 >= len(self.projects):
+            messagebox.showwarning("경고", "올바른 항목을 선택하세요.", parent=self)
+            return
+
+        # "없음"을 제외한 인덱스
+        project_index = selected_index - 1
+        selected_item = self.projects[project_index]
+
+        self.result = {
+            'filepath': selected_item['filepath'],
+            'name': selected_item['name'],
+            'type': selected_item.get('type', 'project')
+        }
+        self.destroy()
+
+    def on_cancel(self):
+        """취소 버튼"""
+        self.result = None
+        self.destroy()

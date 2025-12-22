@@ -4,5 +4,6 @@
     "pause": "f10",
     "stop": "f11",
     "focus": "f12"
-  }
+  },
+  "autostart": null
 }

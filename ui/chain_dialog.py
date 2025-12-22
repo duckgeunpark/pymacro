@@ -129,7 +129,7 @@ class MacroChainDialog(tk.Toplevel):
         # 프로젝트 선택 다이얼로그
         dialog = tk.Toplevel(self)
         dialog.title("매크로 선택 및 실행 설정")
-        dialog.geometry("520x700")
+        dialog.geometry("520x600")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -171,7 +171,7 @@ class MacroChainDialog(tk.Toplevel):
         # 선택된 프로젝트의 실행 설정 표시 영역
         settings_frame = tk.LabelFrame(
             dialog,
-            text="실행 설정 (수정 가능)",
+            text="🎯 실행 설정 (수정 가능)",
             font=("맑은 고딕", 10, "bold"),
             padx=20,
             pady=15
@@ -179,62 +179,76 @@ class MacroChainDialog(tk.Toplevel):
         settings_frame.pack(fill='x', padx=20, pady=10)
 
         # 설정 정보를 담을 변수들
-        mode_var = tk.StringVar(value='flow_repeat')
         repeat_var = tk.StringVar(value='1')
-        excel_infinite_var = tk.BooleanVar(value=False)
+        infinite_var = tk.BooleanVar(value=False)
 
         # 설정 UI 컨테이너
         settings_container = tk.Frame(settings_frame, bg='white')
         settings_container.pack(fill='x')
 
-        # 실행 모드 라디오 버튼들
-        modes = [
-            ('flow_repeat', '플로우 반복 실행'),
-            ('excel_loop', '엑셀 행 반복'),
-            ('infinite', '무한 반복 (중지할 때까지)')
-        ]
-
-        for value, text in modes:
-            tk.Radiobutton(
-                settings_container,
-                text=text,
-                variable=mode_var,
-                value=value,
-                font=("맑은 고딕", 9),
-                bg='white'
-            ).pack(anchor='w', padx=10, pady=3)
-
         # 반복 횟수 입력
         repeat_frame = tk.Frame(settings_container, bg='white')
-        repeat_frame.pack(fill='x', padx=10, pady=(10, 5))
+        repeat_frame.pack(fill='x', padx=10, pady=(10, 15))
 
-        tk.Label(
+        repeat_title_label = tk.Label(
             repeat_frame,
-            text="플로우 반복 횟수:",
-            font=("맑은 고딕", 9),
-            bg='white'
-        ).pack(side='left')
+            text="반복 횟수:",
+            font=("맑은 고딕", 10, "bold"),
+            bg='white',
+            width=10,
+            anchor='w'
+        )
+        repeat_title_label.pack(side='left')
 
-        repeat_entry = tk.Entry(repeat_frame, textvariable=repeat_var, font=("맑은 고딕", 9), width=10)
+        repeat_entry = tk.Entry(repeat_frame, textvariable=repeat_var, font=("맑은 고딕", 10), width=10)
         repeat_entry.pack(side='left', padx=10)
 
-        # 엑셀 무한반복 체크박스
-        excel_check = tk.Checkbutton(
-            settings_container,
-            text="🔄 엑셀 행 무한반복 (마지막 행 후 처음부터 다시)",
-            variable=excel_infinite_var,
-            font=("맑은 고딕", 9),
+        repeat_label = tk.Label(
+            repeat_frame,
+            text="회",
+            font=("맑은 고딕", 10),
             bg='white'
         )
-        excel_check.pack(anchor='w', padx=10, pady=(10, 5))
+        repeat_label.pack(side='left')
+
+        # 무한 반복 체크박스 및 토글 함수
+        def toggle_repeat_entry():
+            """무한 반복 체크 시 반복 횟수 입력 비활성화"""
+            if infinite_var.get():
+                repeat_title_label.config(fg='#95a5a6')
+                repeat_entry.config(state='disabled', bg='#d3d3d3')
+                repeat_label.config(fg='#95a5a6')
+            else:
+                repeat_title_label.config(fg='black')
+                repeat_entry.config(state='normal', bg='white')
+                repeat_label.config(fg='black')
+
+        infinite_check = tk.Checkbutton(
+            settings_container,
+            text="🔄 무한 반복",
+            variable=infinite_var,
+            font=("맑은 고딕", 10, "bold"),
+            fg='#e74c3c',
+            bg='white',
+            command=toggle_repeat_entry
+        )
+        infinite_check.pack(anchor='w', padx=10, pady=(5, 10))
 
         tk.Label(
             settings_container,
-            text="※ 선택한 프로젝트의 현재 설정입니다. 수정하면 프로젝트 파일에 저장됩니다.",
-            font=("맑은 고딕", 8),
+            text="※ 엑셀 데이터가 있으면 자동으로 엑셀 행별 반복이 적용됩니다",
+            font=("맑은 고딕", 9),
             fg='#7f8c8d',
             bg='white'
         ).pack(anchor='w', padx=10, pady=(5, 0))
+
+        tk.Label(
+            settings_container,
+            text="※ 수정하면 프로젝트 파일에 저장됩니다",
+            font=("맑은 고딕", 8),
+            fg='#7f8c8d',
+            bg='white'
+        ).pack(anchor='w', padx=10, pady=(2, 0))
 
         # 프로젝트 선택 시 설정 로드
         def on_project_select(event):
@@ -252,9 +266,17 @@ class MacroChainDialog(tk.Toplevel):
                     settings = project_data.get('settings', {})
                     execution = settings.get('execution', {})
 
-                    mode_var.set(execution.get('mode', 'flow_repeat'))
-                    repeat_var.set(str(execution.get('repeat_count', 1)))
-                    excel_infinite_var.set(execution.get('excel_infinite_loop', False))
+                    mode = execution.get('mode', 'flow_repeat')
+                    repeat_count = execution.get('repeat_count', 1)
+
+                    # 무한 반복 여부 판단
+                    is_infinite = (mode == 'infinite' or execution.get('excel_infinite_loop', False))
+
+                    infinite_var.set(is_infinite)
+                    repeat_var.set(str(repeat_count))
+
+                    # UI 상태 업데이트
+                    toggle_repeat_entry()
 
                 except Exception as e:
                     print(f"프로젝트 설정 로드 실패: {e}")
@@ -292,9 +314,33 @@ class MacroChainDialog(tk.Toplevel):
                 if 'execution' not in project_data['settings']:
                     project_data['settings']['execution'] = {}
 
-                project_data['settings']['execution']['mode'] = mode_var.get()
+                # 반복 횟수 저장
                 project_data['settings']['execution']['repeat_count'] = repeat_count
-                project_data['settings']['execution']['excel_infinite_loop'] = excel_infinite_var.get()
+
+                # 엑셀 데이터 확인
+                has_excel = bool(project_data.get('excel_sources', []))
+
+                # 실행 모드 결정
+                if infinite_var.get():
+                    # 무한 반복
+                    if has_excel:
+                        # 엑셀이 있으면 엑셀 무한 반복
+                        project_data['settings']['execution']['mode'] = 'excel_loop'
+                        project_data['settings']['execution']['excel_infinite_loop'] = True
+                    else:
+                        # 엑셀이 없으면 플로우 무한 반복
+                        project_data['settings']['execution']['mode'] = 'infinite'
+                        project_data['settings']['execution']['excel_infinite_loop'] = False
+                else:
+                    # 횟수 지정 반복
+                    if has_excel:
+                        # 엑셀이 있으면 엑셀 행 반복
+                        project_data['settings']['execution']['mode'] = 'excel_loop'
+                        project_data['settings']['execution']['excel_infinite_loop'] = False
+                    else:
+                        # 엑셀이 없으면 플로우 반복
+                        project_data['settings']['execution']['mode'] = 'flow_repeat'
+                        project_data['settings']['execution']['excel_infinite_loop'] = False
 
                 # 프로젝트 파일에 저장
                 ProjectManager.save_project(selected_project['filepath'], project_data)
@@ -364,6 +410,42 @@ class MacroChainDialog(tk.Toplevel):
         for idx, item in enumerate(self.chain_items):
             self.create_chain_item_widget(idx, item)
 
+    def get_execution_mode_text(self, item):
+        """프로젝트의 실행 설정 텍스트 가져오기"""
+        execution_mode = item.get('execution_mode', 'custom_repeat')
+
+        if execution_mode == 'custom_repeat':
+            # 커스텀 반복 횟수 사용
+            repeat_count = item.get('repeat_count', 1)
+            return f"반복: {repeat_count}회"
+        else:
+            # 프로젝트 설정 사용 - 파일에서 읽어오기
+            try:
+                import json
+                filepath = item.get('filepath', '')
+                if filepath:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        project_data = json.load(f)
+
+                    settings = project_data.get('settings', {}).get('execution', {})
+                    mode = settings.get('mode', 'flow_repeat')
+                    repeat_count = settings.get('repeat_count', 1)
+                    excel_infinite = settings.get('excel_infinite_loop', False)
+
+                    if mode == 'infinite':
+                        return "무한 반복"
+                    elif mode == 'excel_loop':
+                        if excel_infinite:
+                            return f"엑셀 행 반복 (무한)"
+                        else:
+                            return f"엑셀 행 반복 ({repeat_count}회)"
+                    else:  # flow_repeat
+                        return f"{repeat_count}회 반복"
+            except Exception as e:
+                print(f"설정 읽기 오류: {e}")
+
+            return "프로젝트 설정 사용"
+
     def create_chain_item_widget(self, idx, item):
         """체인 아이템 위젯 생성"""
         item_frame = tk.Frame(self.chain_list_frame, bg='white', relief='solid', borderwidth=1)
@@ -391,20 +473,15 @@ class MacroChainDialog(tk.Toplevel):
             anchor='w'
         ).pack(anchor='w')
 
-        # 실행 모드 표시
-        execution_mode = item.get('execution_mode', 'custom_repeat')
-        if execution_mode == 'use_project_settings':
-            mode_text = "프로젝트 설정 사용"
-        else:
-            repeat_count = item.get('repeat_count', 1)
-            mode_text = f"반복: {repeat_count}회" if repeat_count else "프로젝트 설정 사용"
+        # 실행 설정 표시 (실제 프로젝트 설정 읽기)
+        mode_text = self.get_execution_mode_text(item)
 
         tk.Label(
             info_frame,
             text=mode_text,
             font=("맑은 고딕", 9),
             bg='white',
-            fg='#7f8c8d',
+            fg='#2980b9',
             anchor='w'
         ).pack(anchor='w')
 
@@ -465,26 +542,10 @@ class MacroChainDialog(tk.Toplevel):
         if not self.chain_items:
             messagebox.showwarning("경고", "실행할 매크로를 추가하세요.", parent=self)
             return
-
-        # 체인 저장 여부 묻기
-        save = messagebox.askyesnocancel(
-            "체인 저장",
-            "이 체인을 저장하시겠습니까?\n\n"
-            "예: 저장 후 실행\n"
-            "아니오: 저장 없이 실행\n"
-            "취소: 돌아가기",
-            parent=self
-        )
-
-        if save is None:  # 취소
-            return
-        elif save:  # 저장
-            if self.save_chain():
-                self.result = self.chain_items
-                self.destroy()
-        else:  # 저장 안 함
-            self.result = self.chain_items
-            self.destroy()
+            
+        self.save_chain()
+        self.result = self.chain_items
+        self.destroy()
 
     def save_chain(self):
         """체인 저장"""

@@ -11,17 +11,18 @@ from core.chain_executor import ChainExecutor
 class ChainRunner(tk.Frame):
     """매크로 체인 실행 화면"""
 
-    def __init__(self, parent, app, chain_items):
+    def __init__(self, parent, app, chain_items, autostart=False):
         super().__init__(parent)
         self.app = app
         self.parent = parent
         self.chain_items = chain_items  # [{'project_name': str, 'filepath': str, 'repeat_count': int}]
+        self.autostart = autostart
 
         # 실행 엔진
         self.executor = ChainExecutor(chain_items)
         self.executor.set_callbacks(
             log_cb=self.add_log,
-            progress_cb=self.update_progress,
+            # progress_cb=self.update_progress,
             error_cb=self.report_error
         )
 
@@ -104,7 +105,7 @@ class ChainRunner(tk.Frame):
         btn_frame = tk.Frame(header, bg='#2c3e50')
         btn_frame.pack(side='right', padx=20)
 
-        # 뒤로가기 버튼
+        # 뒤로가기 버튼만 유지
         tk.Button(
             btn_frame,
             text="← 뒤로",
@@ -116,66 +117,91 @@ class ChainRunner(tk.Frame):
             command=self.go_back
         ).pack(side='right', padx=5)
 
-        # 중지 버튼
-        self.stop_btn = tk.Button(
-            btn_frame,
-            text="⏹️",
-            font=("맑은 고딕", 14),
-            bg='#e74c3c',
-            fg='white',
-            padx=10,
-            pady=5,
-            command=self.stop_chain,
-            state='disabled'
-        )
-        self.stop_btn.pack(side='right', padx=2)
-
-        # 일시정지 버튼
-        self.pause_btn = tk.Button(
-            btn_frame,
-            text="⏸️",
-            font=("맑은 고딕", 14),
-            bg='#f39c12',
-            fg='white',
-            padx=10,
-            pady=5,
-            command=self.pause_chain,
-            state='disabled'
-        )
-        self.pause_btn.pack(side='right', padx=2)
-
-        # 시작 버튼
-        self.start_btn = tk.Button(
-            btn_frame,
-            text="▶️",
-            font=("맑은 고딕", 14),
-            bg='#27ae60',
-            fg='white',
-            padx=10,
-            pady=5,
-            command=self.start_chain
-        )
-        self.start_btn.pack(side='right', padx=2)
-
         # 메인 컨텐츠
         main_frame = tk.Frame(self, bg='#ecf0f1')
         main_frame.pack(fill='both', expand=True)
 
-        # 좌측: 체인 정보
-        left_frame = tk.Frame(main_frame, bg='white', width=220)
-        left_frame.pack(side='left', fill='y', padx=(20, 10), pady=20)
-        left_frame.pack_propagate(False)
+        # 상측: 체인 정보
+        top_frame = tk.Frame(main_frame, bg='white',height=300)
+        top_frame.pack(side='top', fill='x', padx=(20), pady=(20,10))
+        top_frame.pack_propagate(False)
 
-        self.setup_chain_info(left_frame)
+        self.setup_chain_info(top_frame)
 
-        # 우측: 로그 및 제어
-        right_frame = tk.Frame(main_frame, bg='white')
-        right_frame.pack(side='right', fill='both', expand=True, padx=(10, 20), pady=20)
+        # 하측: 로그 및 제어
+        bottom_frame = tk.Frame(main_frame, bg='white')
+        bottom_frame.pack(side='bottom', fill='both', expand=True, padx=(20), pady=(10,20))
 
-        self.setup_log_and_controls(right_frame)
+        self.setup_log_and_controls(bottom_frame)
+
+        # 자동시작인 경우 바로 실행
+        if self.autostart:
+            self.after(500, self.start_chain)
+
+    def get_execution_mode_text(self, item):
+        """프로젝트의 실행 설정 텍스트 가져오기"""
+        execution_mode = item.get('execution_mode', 'custom_repeat')
+
+        if execution_mode == 'custom_repeat':
+            # 커스텀 반복 횟수 사용
+            repeat_count = item.get('repeat_count', 1)
+            return f"반복: {repeat_count}회"
+        else:
+            # 프로젝트 설정 사용 - 파일에서 읽어오기
+            try:
+                from core.project_manager import ProjectManager
+                filepath = item.get('filepath', '')
+                if filepath:
+                    project_data = ProjectManager.load_project(filepath)
+                    if project_data:
+                        settings = project_data.get('settings', {}).get('execution', {})
+                        mode = settings.get('mode', 'flow_repeat')
+                        repeat_count = settings.get('repeat_count', 1)
+                        excel_infinite = settings.get('excel_infinite_loop', False)
+
+                        if mode == 'infinite':
+                            return "무한 반복"
+                        elif mode == 'excel_loop':
+                            if excel_infinite:
+                                return f"엑셀 행 반복 (무한)"
+                            else:
+                                return f"엑셀 행 반복 ({repeat_count}회)"
+                        else:  # flow_repeat
+                            return f"{repeat_count}회 반복"
+            except Exception as e:
+                print(f"설정 읽기 오류: {e}")
+
+            return "프로젝트 설정 사용"
 
     def setup_chain_info(self, parent):
         """체인 정보 패널"""
+        hotkey_frame = tk.LabelFrame(
+            parent,
+            text="단축키",
+            font=("맑은 고딕", 11, "bold"),
+            bg='white',          # top_frame 이 흰색이므로 맞춤
+            padx=10,
+            pady=10
+        )
+        hotkey_frame.pack(fill='x', padx=30, pady=(15, 5))   # ★ 실행 순서 위, 위쪽 여백만 크게
+
+        from core.settings_manager import SettingsManager
+        hotkeys = SettingsManager.get_hotkeys()
+        hotkey_text = (
+            f"시작: {hotkeys.get('start', 'F9').upper()}  |  "
+            f"일시정지: {hotkeys.get('pause', 'F10').upper()}  |  "
+            f"중지: {hotkeys.get('stop', 'F11').upper()}  |  "
+            f"맨 앞으로: {hotkeys.get('focus', 'F12').upper()}"
+        )
+
+        tk.Label(
+            hotkey_frame,
+            text=hotkey_text,
+            font=("맑은 고딕", 9),
+            bg='white',
+            fg='#2c3e50'
+        ).pack()
+
         tk.Label(
             parent,
             text="📋 실행 순서",
@@ -201,8 +227,10 @@ class ChainRunner(tk.Frame):
 
         # 체인 항목 표시
         for idx, item in enumerate(self.chain_items):
+            row = idx // 2  # 0, 0, 1, 1, 2, 2...
+            col = idx % 2   # 0, 1, 0, 1, 0, 1...
             item_frame = tk.Frame(list_frame, bg='#ecf0f1', relief='solid', borderwidth=1)
-            item_frame.pack(fill='x', pady=5)
+            item_frame.grid(row=row, column=col, padx=8, pady=5, sticky='nsew')
 
             tk.Label(
                 item_frame,
@@ -224,51 +252,49 @@ class ChainRunner(tk.Frame):
                 anchor='w'
             ).pack(anchor='w')
 
-            # 실행 모드 표시
-            execution_mode = item.get('execution_mode', 'custom_repeat')
-            if execution_mode == 'use_project_settings':
-                mode_text = "프로젝트 설정 사용"
-            else:
-                repeat_count = item.get('repeat_count', 1)
-                mode_text = f"반복: {repeat_count}회" if repeat_count else "프로젝트 설정 사용"
+            # 실행 설정 표시 (실제 프로젝트 설정 읽기)
+            mode_text = self.get_execution_mode_text(item)
 
             tk.Label(
                 info,
                 text=mode_text,
                 font=("맑은 고딕", 9),
                 bg='#ecf0f1',
-                fg='#7f8c8d',
+                fg='#2980b9',
                 anchor='w'
             ).pack(anchor='w')
 
+        for col in range(2):
+            list_frame.grid_columnconfigure(col, weight=1,minsize=230, uniform="chain")
+
     def setup_log_and_controls(self, parent):
         """로그 및 제어 패널"""
-        # 진행 상황
-        progress_frame = tk.Frame(parent, bg='white')
-        progress_frame.pack(fill='x', padx=15, pady=(15, 10))
+        # # 진행 상황
+        # progress_frame = tk.Frame(parent, bg='white')
+        # progress_frame.pack(fill='x', padx=15, pady=(15, 10))
 
-        tk.Label(
-            progress_frame,
-            text="진행 상황",
-            font=("맑은 고딕", 11, "bold"),
-            bg='white'
-        ).pack(anchor='w', pady=(0, 5))
+        # tk.Label(
+        #     progress_frame,
+        #     text="진행 상황",
+        #     font=("맑은 고딕", 11, "bold"),
+        #     bg='white'
+        # ).pack(anchor='w', pady=(0, 5))
 
-        self.progress_bar = ttk.Progressbar(
-            progress_frame,
-            mode='determinate',
-            length=400
-        )
-        self.progress_bar.pack(fill='x', pady=(0, 5))
+        # self.progress_bar = ttk.Progressbar(
+        #     progress_frame,
+        #     mode='determinate',
+        #     length=400
+        # )
+        # self.progress_bar.pack(fill='x', pady=(0, 5))
 
-        self.progress_label = tk.Label(
-            progress_frame,
-            text="대기 중...",
-            font=("맑은 고딕", 9),
-            bg='white',
-            fg='#7f8c8d'
-        )
-        self.progress_label.pack(anchor='w')
+        # self.progress_label = tk.Label(
+        #     progress_frame,
+        #     text="대기 중...",
+        #     font=("맑은 고딕", 9),
+        #     bg='white',
+        #     fg='#7f8c8d'
+        # )
+        # self.progress_label.pack(anchor='w')
 
         # 로그
         log_frame = tk.LabelFrame(
@@ -298,14 +324,14 @@ class ChainRunner(tk.Frame):
         self.log_text.see('end')
         self.log_text.config(state='disabled')
 
-    def update_progress(self, current, total, status=""):
-        """진행 상황 업데이트"""
-        if total > 0:
-            progress = (current / total) * 100
-            self.progress_bar['value'] = progress
-            self.progress_label.config(text=f"{status} ({current}/{total})")
-        else:
-            self.progress_label.config(text=status)
+    # def update_progress(self, current, total, status=""):
+    #     """진행 상황 업데이트"""
+    #     if total > 0:
+    #         progress = (current / total) * 100
+    #         self.progress_bar['value'] = progress
+    #         self.progress_label.config(text=f"{status} ({current}/{total})")
+    #     else:
+    #         self.progress_label.config(text=status)
 
     def report_error(self, error_msg):
         """에러 보고"""
@@ -317,9 +343,6 @@ class ChainRunner(tk.Frame):
             return
 
         self.is_running = True
-        self.start_btn.config(state='disabled')
-        self.pause_btn.config(state='normal')
-        self.stop_btn.config(state='normal')
 
         # 별도 스레드에서 실행
         thread = threading.Thread(target=self.executor.start, daemon=True)
@@ -332,10 +355,10 @@ class ChainRunner(tk.Frame):
 
         if self.executor.is_paused:
             self.executor.resume()
-            self.pause_btn.config(text="⏸️ 일시정지")
+            self.add_log("▶️ 재개")
         else:
             self.executor.pause()
-            self.pause_btn.config(text="▶️ 재개")
+            self.add_log("⏸️ 일시정지")
 
     def stop_chain(self):
         """중지"""
@@ -344,10 +367,7 @@ class ChainRunner(tk.Frame):
 
         self.executor.stop()
         self.is_running = False
-
-        self.start_btn.config(state='normal')
-        self.pause_btn.config(state='disabled', text="⏸️ 일시정지")
-        self.stop_btn.config(state='disabled')
+        self.add_log("⏹️ 중지")
 
     def bring_to_front(self):
         """프로그램 창을 맨 앞으로 가져오기"""

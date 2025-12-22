@@ -76,6 +76,30 @@ class AppConfig:
         for directory in directories:
             os.makedirs(directory, exist_ok=True)
 
+    def create_settings_file(self):
+        """settings.json 파일 생성 (없는 경우)"""
+        import json
+
+        settings_path = 'settings.json'
+
+        if not os.path.exists(settings_path):
+            default_settings = {
+                "hotkeys": {
+                    "start": "f9",
+                    "pause": "f10",
+                    "stop": "f11",
+                    "focus": "f12"
+                },
+                "autostart": None
+            }
+
+            try:
+                with open(settings_path, 'w', encoding='utf-8') as f:
+                    json.dump(default_settings, f, ensure_ascii=False, indent=2)
+                print(f"[INFO] settings.json 파일이 생성되었습니다.")
+            except Exception as e:
+                print(f"[WARNING] settings.json 생성 실패: {e}")
+
 
 # 전역 설정 인스턴스
 config = AppConfig()

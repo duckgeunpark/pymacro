@@ -14,12 +14,13 @@ from core.flow_manager import FlowManager
 from core.executor import MacroExecutor
 
 class ProjectRunner(tk.Frame):
-    def __init__(self, parent, app, project_data, filepath):
+    def __init__(self, parent, app, project_data, filepath, autostart=False):
         super().__init__(parent)
         self.app = app
         self.parent = parent
         self.project_data = project_data
         self.filepath = filepath
+        self.autostart = autostart
         
         # 관리자 초기화
         self.coord_mgr = CoordinateManager()
@@ -46,7 +47,7 @@ class ProjectRunner(tk.Frame):
         
         self.executor.set_callbacks(
             log_cb=self.add_log,
-            progress_cb=self.update_progress,
+            # progress_cb=self.update_progress,
             error_cb=self.report_error
         )
         
@@ -145,21 +146,10 @@ class ProjectRunner(tk.Frame):
             bg='#2c3e50',
             fg='white'
         ).pack(side='left', padx=20, pady=15)
-        
+
         btn_frame = tk.Frame(header, bg='#2c3e50')
         btn_frame.pack(side='right', padx=20)
-        
-        tk.Button(
-            btn_frame,
-            text="편집",
-            font=("맑은 고딕", 10),
-            bg='#95a5a6',
-            fg='white',
-            padx=15,
-            pady=5,
-            command=self.edit_project
-        ).pack(side='left', padx=5)
-        
+
         tk.Button(
             btn_frame,
             text="실행 설정",
@@ -170,7 +160,18 @@ class ProjectRunner(tk.Frame):
             pady=5,
             command=self.show_settings
         ).pack(side='left', padx=5)
-        
+
+        tk.Button(
+            btn_frame,
+            text="편집",
+            font=("맑은 고딕", 10),
+            bg='#95a5a6',
+            fg='white',
+            padx=15,
+            pady=5,
+            command=self.edit_project
+        ).pack(side='left', padx=5)
+
         tk.Button(
             btn_frame,
             text="홈",
@@ -181,7 +182,7 @@ class ProjectRunner(tk.Frame):
             pady=5,
             command=self.go_home
         ).pack(side='left', padx=5)
-        
+
         # 메인 컨텐츠
         content = tk.Frame(self, bg='#F0F0F0')
         content.pack(fill='both', expand=True, padx=30, pady=20)
@@ -364,40 +365,40 @@ class ProjectRunner(tk.Frame):
         tk.Label(info_grid, text="플로우:", font=("맑은 고딕", 10, "bold"), bg='#F0F0F0').grid(row=3, column=0, sticky='w', padx=5)
         tk.Label(info_grid, text=f"{len(self.flow_mgr.flow_sequence)}개 액션", font=("맑은 고딕", 10), bg='#F0F0F0').grid(row=3, column=1, sticky='w')
         
-        # 진행 상황
-        progress_frame = tk.LabelFrame(
-            content,
-            text="📊 진행 상황",
-            font=("맑은 고딕", 11, "bold"),
-            bg='#F0F0F0',
-            padx=15,
-            pady=15
-        )
-        progress_frame.pack(fill='x', pady=(0, 20))
+        # # 진행 상황
+        # progress_frame = tk.LabelFrame(
+        #     content,
+        #     text="📊 진행 상황",
+        #     font=("맑은 고딕", 11, "bold"),
+        #     bg='#F0F0F0',
+        #     padx=15,
+        #     pady=15
+        # )
+        # progress_frame.pack(fill='x', pady=(0, 20))
         
-        self.progress_label = tk.Label(
-            progress_frame,
-            text="대기 중...",
-            font=("맑은 고딕", 10),
-            bg='#F0F0F0'
-        )
-        self.progress_label.pack(pady=(0, 10))
+        # self.progress_label = tk.Label(
+        #     progress_frame,
+        #     text="대기 중...",
+        #     font=("맑은 고딕", 10),
+        #     bg='#F0F0F0'
+        # )
+        # self.progress_label.pack(pady=(0, 10))
         
-        self.progress_bar = ttk.Progressbar(
-            progress_frame,
-            mode='determinate',
-            length=500
-        )
-        self.progress_bar.pack(fill='x')
+        # self.progress_bar = ttk.Progressbar(
+        #     progress_frame,
+        #     mode='determinate',
+        #     length=500
+        # )
+        # self.progress_bar.pack(fill='x')
         
-        self.status_label = tk.Label(
-            progress_frame,
-            text="",
-            font=("맑은 고딕", 9),
-            fg='gray',
-            bg='#F0F0F0'
-        )
-        self.status_label.pack(pady=(5, 0))
+        # self.status_label = tk.Label(
+        #     progress_frame,
+        #     text="",
+        #     font=("맑은 고딕", 9),
+        #     fg='gray',
+        #     bg='#F0F0F0'
+        # )
+        # self.status_label.pack(pady=(5, 0))
         
         # 로그
         log_frame = tk.LabelFrame(
@@ -424,48 +425,52 @@ class ProjectRunner(tk.Frame):
         self.log_text.pack(fill='both', expand=True)
         log_scroll.config(command=self.log_text.yview)
         
-        # 컨트롤 버튼
-        control_frame = tk.Frame(content, bg='white')
-        control_frame.pack()
+        # # 컨트롤 버튼
+        # control_frame = tk.Frame(content, bg='white')
+        # control_frame.pack()
         
-        self.start_btn = tk.Button(
-            control_frame,
-            text="▶️ 시작",
-            font=("맑은 고딕", 12, "bold"),
-            bg='#27ae60',
-            fg='white',
-            padx=40,
-            pady=15,
-            command=self.start_macro
-        )
-        self.start_btn.pack(side='left', padx=5)
+        # self.start_btn = tk.Button(
+        #     control_frame,
+        #     text="▶️ 시작",
+        #     font=("맑은 고딕", 12, "bold"),
+        #     bg='#27ae60',
+        #     fg='white',
+        #     padx=40,
+        #     pady=15,
+        #     command=self.start_macro
+        # )
+        # self.start_btn.pack(side='left', padx=5)
         
-        self.pause_btn = tk.Button(
-            control_frame,
-            text="⏸️ 일시정지",
-            font=("맑은 고딕", 12, "bold"),
-            bg='#f39c12',
-            fg='white',
-            padx=30,
-            pady=15,
-            state='disabled',
-            command=self.pause_macro
-        )
-        self.pause_btn.pack(side='left', padx=5)
+        # self.pause_btn = tk.Button(
+        #     control_frame,
+        #     text="⏸️ 일시정지",
+        #     font=("맑은 고딕", 12, "bold"),
+        #     bg='#f39c12',
+        #     fg='white',
+        #     padx=30,
+        #     pady=15,
+        #     state='disabled',
+        #     command=self.pause_macro
+        # )
+        # self.pause_btn.pack(side='left', padx=5)
         
-        self.stop_btn = tk.Button(
-            control_frame,
-            text="⏹️ 중지",
-            font=("맑은 고딕", 12, "bold"),
-            bg='#e74c3c',
-            fg='white',
-            padx=40,
-            pady=15,
-            state='disabled',
-            command=self.stop_macro
-        )
-        self.stop_btn.pack(side='left', padx=5)
-    
+        # self.stop_btn = tk.Button(
+        #     control_frame,
+        #     text="⏹️ 중지",
+        #     font=("맑은 고딕", 12, "bold"),
+        #     bg='#e74c3c',
+        #     fg='white',
+        #     padx=40,
+        #     pady=15,
+        #     state='disabled',
+        #     command=self.stop_macro
+        # )
+        # self.stop_btn.pack(side='left', padx=5)
+
+        # 자동시작인 경우 바로 실행
+        if self.autostart:
+            self.after(500, self.start_macro)
+
     def add_log(self, message):
         """로그 추가"""
         self.log_text.config(state='normal')
@@ -473,18 +478,18 @@ class ProjectRunner(tk.Frame):
         self.log_text.see('end')
         self.log_text.config(state='disabled')
     
-    def update_progress(self, current, total, status=""):
-        """진행상황 업데이트"""
-        if total > 0:
-            percentage = (current / total) * 100
-            self.progress_bar['value'] = percentage
-            self.progress_label.config(text=f"{current}/{total} ({percentage:.1f}%)")
-        else:
-            self.progress_bar['mode'] = 'indeterminate'
-            self.progress_bar.start()
-            self.progress_label.config(text=f"반복 {current}")
+    # def update_progress(self, current, total, status=""):
+    #     """진행상황 업데이트"""
+    #     if total > 0:
+    #         percentage = (current / total) * 100
+    #         self.progress_bar['value'] = percentage
+    #         self.progress_label.config(text=f"{current}/{total} ({percentage:.1f}%)")
+    #     else:
+    #         self.progress_bar['mode'] = 'indeterminate'
+    #         self.progress_bar.start()
+    #         self.progress_label.config(text=f"반복 {current}")
         
-        self.status_label.config(text=status)
+    #     self.status_label.config(text=status)
     
     def report_error(self, error_msg, screenshot=None):
         """에러 보고"""
@@ -650,12 +655,13 @@ class ProjectRunner(tk.Frame):
         """설정 창"""
         dialog = tk.Toplevel(self.parent)
         dialog.title("실행 설정")
-        dialog.geometry("450x500")
+        dialog.geometry("300x300")
         dialog.transient(self.parent)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
-        
+
         set_dialog_icon(dialog)
+        center_window_on_parent(dialog, self.parent)
 
         tk.Label(
             dialog,
@@ -664,23 +670,11 @@ class ProjectRunner(tk.Frame):
             bg='#F0F0F0'
         ).pack(pady=15, fill='x')
         
-        # 단축키 설정 안내
-        info_frame = tk.Frame(dialog, bg='#e8f4f8', padx=15, pady=10)
-        info_frame.pack(fill='x', padx=20, pady=(10, 5))
 
-        tk.Label(
-            info_frame,
-            text="ℹ️ 단축키 설정은 홈 화면의 '단축키 설정' 버튼에서 변경할 수 있습니다.\n모든 매크로에 동일한 단축키가 적용됩니다.",
-            font=("맑은 고딕", 9),
-            bg='#e8f4f8',
-            fg='#2980b9',
-            justify='left'
-        ).pack()
-
-        # 실행 모드
+        # 실행 설정
         mode_frame = tk.LabelFrame(
             dialog,
-            text="🎯 실행 모드",
+            text="🎯 실행 설정",
             font=("맑은 고딕", 11, "bold"),
             bg='#F0F0F0',
             fg='#2c3e50',
@@ -690,70 +684,70 @@ class ProjectRunner(tk.Frame):
             borderwidth=1
         )
         mode_frame.pack(fill='x', padx=20, pady=10)
-        
-        mode_var = tk.StringVar(
-            value=self.project_data.get('settings', {}).get('execution', {}).get('mode', 'flow_repeat')
-        )
-        
-        modes = [
-            ('flow_repeat', '플로우 반복 실행'),
-            ('excel_loop', '엑셀 행 반복'),
-            ('infinite', '무한 반복 (중지할 때까지)')
-        ]
-        
-        for value, text in modes:
-            tk.Radiobutton(
-                mode_frame,
-                text=text,
-                variable=mode_var,
-                value=value,
-                font=("맑은 고딕", 9),
-                bg='#F0F0F0',
-                fg='#2c3e50',
-                selectcolor='white'
-            ).pack(anchor='w', padx=10, pady=3)
-        
+
         # 반복 횟수
         repeat_frame = tk.Frame(mode_frame, bg='#F0F0F0')
-        repeat_frame.pack(fill='x', padx=10, pady=(15, 0))
-        
-        tk.Label(
+        repeat_frame.pack(fill='x', padx=10, pady=(10, 15))
+
+        repeat_title_label = tk.Label(
             repeat_frame,
-            text="플로우 반복 횟수:",
-            font=("맑은 고딕", 9),
+            text="반복 횟수:",
+            font=("맑은 고딕", 10, "bold"),
+            bg='#F0F0F0',
+            fg='#2c3e50',
+            width=10,
+            anchor='w'
+        )
+        repeat_title_label.pack(side='left')
+
+        # 기존 설정 읽기
+        settings = self.project_data.get('settings', {}).get('execution', {})
+        mode = settings.get('mode', 'flow_repeat')
+        repeat_count = settings.get('repeat_count', 1)
+        is_infinite = (mode == 'infinite')
+
+        repeat_entry = tk.Entry(repeat_frame, font=("맑은 고딕", 10), width=10)
+        repeat_entry.insert(0, str(repeat_count))
+        repeat_entry.pack(side='left', padx=10)
+
+        repeat_label = tk.Label(
+            repeat_frame,
+            text="회",
+            font=("맑은 고딕", 10),
             bg='#F0F0F0',
             fg='#2c3e50'
-        ).pack(side='left')
-        
-        repeat_entry = tk.Entry(repeat_frame, font=("맑은 고딕", 9), width=10)
-        repeat_entry.insert(0, str(
-            self.project_data.get('settings', {}).get('execution', {}).get('repeat_count', 1)
-        ))
-        repeat_entry.pack(side='left', padx=10)
-        
-        # 엑셀 무한반복 체크박스
-        excel_infinite_var = tk.BooleanVar(
-            value=self.project_data.get('settings', {}).get('execution', {}).get('excel_infinite_loop', False)
         )
-        
-        excel_infinite_check = tk.Checkbutton(
+        repeat_label.pack(side='left')
+
+        # 무한 반복 체크박스
+        infinite_var = tk.BooleanVar(value=is_infinite)
+
+        def toggle_repeat_entry():
+            """무한 반복 체크 시 반복 횟수 입력 비활성화"""
+            if infinite_var.get():
+                repeat_title_label.config(fg='#95a5a6')
+                repeat_entry.config(state='disabled', bg='#d3d3d3')
+                repeat_label.config(fg='#95a5a6')
+            else:
+                repeat_title_label.config(fg='#2c3e50')
+                repeat_entry.config(state='normal', bg='white')
+                repeat_label.config(fg='#2c3e50')
+
+        infinite_check = tk.Checkbutton(
             mode_frame,
-            text="🔄 엑셀 행 무한반복 (마지막 행 후 처음부터 다시)",
-            variable=excel_infinite_var,
-            font=("맑은 고딕", 9, "bold"),
+            text="🔄 무한 반복",
+            variable=infinite_var,
+            font=("맑은 고딕", 10, "bold"),
             fg='#e74c3c',
             bg='#F0F0F0',
-            selectcolor='white'
+            selectcolor='white',
+            command=toggle_repeat_entry
         )
-        excel_infinite_check.pack(anchor='w', padx=10, pady=(15, 5))
-        
-        tk.Label(
-            mode_frame,
-            text="※ 엑셀 모드에서만 적용됩니다",
-            font=("맑은 고딕", 8),
-            fg='gray',
-            bg='#F0F0F0'
-        ).pack(anchor='w', padx=30, pady=(0, 10))
+        infinite_check.pack(anchor='w', padx=10, pady=(5, 10))
+
+        # 초기 상태 설정
+        toggle_repeat_entry()
+
 
         def save_settings():
             # 실행 설정 저장
@@ -761,25 +755,47 @@ class ProjectRunner(tk.Frame):
                 self.project_data['settings'] = {}
             if 'execution' not in self.project_data['settings']:
                 self.project_data['settings']['execution'] = {}
-            
-            self.project_data['settings']['execution']['mode'] = mode_var.get()
-            self.project_data['settings']['execution']['excel_infinite_loop'] = excel_infinite_var.get()
-            
+
+            # 반복 횟수 저장
             try:
                 repeat_count = int(repeat_entry.get())
+                if repeat_count < 1:
+                    repeat_count = 1
                 self.project_data['settings']['execution']['repeat_count'] = repeat_count
             except:
-                pass
-            
+                self.project_data['settings']['execution']['repeat_count'] = 1
+
+            # 실행 모드 결정
+            if infinite_var.get():
+                # 무한 반복
+                if self.excel_mgr.excel_sources:
+                    # 엑셀이 있으면 엑셀 무한 반복
+                    self.project_data['settings']['execution']['mode'] = 'excel_loop'
+                    self.project_data['settings']['execution']['excel_infinite_loop'] = True
+                else:
+                    # 엑셀이 없으면 플로우 무한 반복
+                    self.project_data['settings']['execution']['mode'] = 'infinite'
+                    self.project_data['settings']['execution']['excel_infinite_loop'] = False
+            else:
+                # 횟수 지정 반복
+                if self.excel_mgr.excel_sources:
+                    # 엑셀이 있으면 엑셀 행 반복
+                    self.project_data['settings']['execution']['mode'] = 'excel_loop'
+                    self.project_data['settings']['execution']['excel_infinite_loop'] = False
+                else:
+                    # 엑셀이 없으면 플로우 반복
+                    self.project_data['settings']['execution']['mode'] = 'flow_repeat'
+                    self.project_data['settings']['execution']['excel_infinite_loop'] = False
+
             # 저장
             ProjectManager.save_project(self.filepath, self.project_data)
-            
+
             # 단축키 리스너 재시작
             self.stop_hotkey_listener()
             self.setup_hotkeys()
-            
+
             dialog.destroy()
-            messagebox.showinfo("완료", "설정이 저장되었습니다!\n단축키가 적용되었습니다.")
+            messagebox.showinfo("완료", "설정이 저장되었습니다!")
         
         tk.Button(
             dialog,

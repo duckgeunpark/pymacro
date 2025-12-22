@@ -14,7 +14,7 @@ class HotkeySettingsDialog(tk.Toplevel):
         super().__init__(parent)
         self.parent = parent
         self.title("⌨️ 단축키 설정")
-        self.geometry("320x450")
+        self.geometry("300x330")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
@@ -46,23 +46,23 @@ class HotkeySettingsDialog(tk.Toplevel):
         content = tk.Frame(self, bg='#F0F0F0', padx=30, pady=20)
         content.pack(fill='both', expand=True)
 
-        tk.Label(
-            content,
-            text="모든 매크로에 적용되는 전역 단축키입니다.",
-            font=("맑은 고딕", 10),
-            bg='#F0F0F0',
-            fg='#7f8c8d'
-        ).pack(pady=(0, 20))
+        # tk.Label(
+        #     content,
+        #     text="모든 매크로에 적용되는 전역 단축키입니다.",
+        #     font=("맑은 고딕", 10),
+        #     bg='#F0F0F0',
+        #     fg='#7f8c8d'
+        # ).pack(pady=(0, 20))
 
         # 현재 설정 로드
         hotkeys = SettingsManager.get_hotkeys()
 
         # 단축키 입력 필드
         for idx, (action, label) in enumerate([
-            ('start', '⏯️ 시작'),
-            ('pause', '⏸️ 일시정지'),
-            ('stop', '⏹️ 중지'),
-            ('focus', '🔍 맨 앞으로')
+            ('start', '시작'),
+            ('pause', '일시정지'),
+            ('stop', '중지'),
+            ('focus', '맨 앞')
         ]):
             row_frame = tk.Frame(content, bg='#F0F0F0')
             row_frame.pack(fill='x', pady=8)
@@ -83,42 +83,37 @@ class HotkeySettingsDialog(tk.Toplevel):
                 relief='solid',
                 borderwidth=1
             )
-            entry.insert(0, hotkeys.get(action, ''))
+            value = hotkeys.get(action, '')
+            entry.insert(0, value.upper())
             entry.pack(side='left', padx=10)
 
             self.hotkey_entries[action] = entry
+            entry.bind(
+                "<Button-1>",
+                lambda event, a=action, e=entry: self.open_key_input_dialog(a, e)
+            )
 
-            # 설정 버튼
-            tk.Button(
-                row_frame,
-                text="키 입력",
-                font=("맑은 고딕", 9),
-                bg='#3498db',
-                fg='white',
-                command=lambda a=action, e=entry: self.open_key_input_dialog(a, e)
-            ).pack(side='left')
-
-        # 힌트
-        tk.Label(
-            content,
-            text="※ 예: f8, f9, f10, f12, enter, ctrl+s 등",
-            font=("맑은 고딕", 9),
-            fg='#95a5a6',
-            bg='#F0F0F0'
-        ).pack(pady=(20, 10))
+        # # 힌트
+        # tk.Label(
+        #     content,
+        #     text="※ 예: f8, f9, f10, f12, enter, ctrl+s 등",
+        #     font=("맑은 고딕", 9),
+        #     fg='#95a5a6',
+        #     bg='#F0F0F0'
+        # ).pack(pady=(20, 10))
 
         # 버튼
         btn_frame = tk.Frame(content, bg='#F0F0F0')
-        btn_frame.pack(pady=20)
+        btn_frame.pack(pady=15)
 
         tk.Button(
             btn_frame,
-            text="💾 저장",
+            text="저장",
             font=("맑은 고딕", 11, "bold"),
             bg='#27ae60',
             fg='white',
             padx=30,
-            pady=10,
+            pady=5,
             command=self.save_hotkeys
         ).pack(side='left', padx=5)
 
@@ -129,7 +124,7 @@ class HotkeySettingsDialog(tk.Toplevel):
             bg='#95a5a6',
             fg='white',
             padx=30,
-            pady=10,
+            pady=5,
             command=self.destroy
         ).pack(side='left', padx=5)
 
@@ -222,13 +217,13 @@ class HotkeySettingsDialog(tk.Toplevel):
             else:
                 captured_key[0] = key_name
 
-            key_display.config(text=captured_key[0], fg='#27ae60')
+            key_display.config(text=captured_key[0].upper(), fg='#27ae60')
             confirm_btn.config(state='normal')
 
         def on_ok():
             if captured_key[0]:
                 entry.delete(0, tk.END)
-                entry.insert(0, captured_key[0])
+                entry.insert(0, captured_key[0].upper())
                 key_dialog.destroy()
 
         def on_cancel():

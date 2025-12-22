@@ -252,7 +252,7 @@ class ProjectEditor(tk.Frame):
         
         # 액션 추가 버튼
         btn_frame = tk.Frame(parent, bg='white')
-        btn_frame.pack(fill='x', padx=20, pady=10)
+        btn_frame.pack(fill='x', padx=20, pady=15)
         
         tk.Button(
             btn_frame,
@@ -1129,24 +1129,27 @@ class ProjectEditor(tk.Frame):
         with open(filepath, 'rb') as f:
             img_data = base64.b64encode(f.read()).decode()
         
-        # 이름 입력 (커스텀 다이얼로그 사용)
-        dialog = NameInputDialog(
+        # 이름 및 정확도 입력
+        from ui.dialogs import ImageNameDialog
+        dialog = ImageNameDialog(
             self.parent,
-            title="이미지 이름",
-            message="이미지 이름을 입력하세요:",
-            initial_value=""
+            title="이미지 등록",
+            initial_name="",
+            initial_confidence=80
         )
         self.parent.wait_window(dialog)
-        
-        name = dialog.result
-        if not name:
+
+        if not dialog.result:
             return
-        
+
+        name = dialog.result['name']
+        confidence = dialog.result['confidence']
+
         # 추가
-        image = self.image_mgr.add_image(name, img_data)
+        image = self.image_mgr.add_image(name, img_data, confidence=confidence)
         if image:
             self.refresh_image_list()
-            messagebox.showinfo("완료", f"이미지 '{name}'이(가) 추가되었습니다.")
+            messagebox.showinfo("완료", f"이미지 '{name}'이(가) 추가되었습니다.\n정확도: {int(confidence*100)}%")
         else:
             messagebox.showerror("오류", "이미지를 추가할 수 없습니다.")
 

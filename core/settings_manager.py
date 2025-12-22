@@ -12,8 +12,10 @@ class SettingsManager:
 
     @staticmethod
     def get_settings_path():
-        """설정 파일 경로"""
-        return os.path.join(os.path.dirname(os.path.dirname(__file__)), SettingsManager.SETTINGS_FILE)
+        """설정 파일 경로 (현재 작업 디렉토리 기준)"""
+        # main.py에서 os.chdir(config.app_path)를 호출하므로
+        # 현재 작업 디렉토리에서 settings.json을 찾음
+        return SettingsManager.SETTINGS_FILE
 
     @staticmethod
     def load_settings():

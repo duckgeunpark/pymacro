@@ -146,6 +146,7 @@ class MacroExecutor:
 
         total_rows = end_row - start_row
         self.infinite_loop = settings.get('excel_infinite_loop', False)  # 무한반복 옵션
+        repeat_count = settings.get('repeat_count', 1)  # 반복 횟수
 
         # 각 엑셀별 독립 인덱스 관리 {excel_id: current_row_index}
         self.excel_row_indices = {excel_id: start_row for excel_id in self.all_excel_data.keys()}
@@ -157,15 +158,18 @@ class MacroExecutor:
                 source_name = self._get_excel_source_name(excel_id)
                 self.log(f"   - {source_name}: {len(df)}행")
         else:
-            self.log(f"📊 엑셀 행 반복 모드: {start_row+1}행 ~ {end_row}행 (총 {total_rows}행)")
+            self.log(f"📊 엑셀 행 반복 모드: {start_row+1}행 ~ {end_row}행 (총 {total_rows}행) × {repeat_count}회")
 
         loop_count = 0  # 반복 횟수
 
-        while True:  # 무한 루프
+        while True:  # 무한 루프 (또는 repeat_count까지)
             loop_count += 1
 
             if self.infinite_loop:
                 self.log(f"\n🔄 === 반복 {loop_count}회차 시작 ===")
+            else:
+                if loop_count > 1:
+                    self.log(f"\n🔄 === 반복 {loop_count}/{repeat_count}회차 시작 ===")
 
             for row_idx in range(start_row, end_row):
                 if self.should_stop:
@@ -242,12 +246,27 @@ class MacroExecutor:
                                 if attempt == retry_count - 1:
                                     self.report_error(f"행 {self.current_row} 재시도 실패. 건너뜁니다.")
 
-            # 무한반복이 아니면 한 번만 실행하고 종료
+            # 무한반복이 아니면 repeat_count만큼 반복 후 종료
             if not self.infinite_loop:
-                break
+                if loop_count >= repeat_count:
+                    self.log(f"✅ 설정된 반복 횟수({repeat_count}회) 완료")
+                    break
+                else:
+                    # 다음 회차를 위해 엑셀 인덱스 리셋
+                    self.excel_row_indices = {excel_id: start_row for excel_id in self.all_excel_data.keys()}
+                    # 중복 체크 배열 초기화
+                    for excel_id in self.all_excel_data.keys():
+                        self.excel_mgr.reset_pasted_values(excel_id)
+                    self.log(f"✅ 반복 {loop_count}/{repeat_count}회차 완료. 다시 시작...")
+                    time.sleep(0.5)
 
             # 무한반복일 경우 다시 처음부터 (메인 엑셀만 리셋, 나머지는 독립 인덱스 유지)
-            if self.infinite_loop:
+            else:
+                # 엑셀 인덱스 리셋
+                self.excel_row_indices = {excel_id: start_row for excel_id in self.all_excel_data.keys()}
+                # 중복 체크 배열 초기화
+                for excel_id in self.all_excel_data.keys():
+                    self.excel_mgr.reset_pasted_values(excel_id)
                 self.log(f"✅ 반복 {loop_count}회차 완료. 메인 엑셀 처음부터 다시 시작...")
                 time.sleep(0.5)  # 약간의 딜레이
 
@@ -629,8 +648,25 @@ class MacroExecutor:
 
         filepath = os.path.join(screenshot_dir, filename)
 
-        screenshot = pyautogui.screenshot()
+        # 영역 설정에 따라 스크린샷 촬영
+        mode = params.get('mode', 'full')
+        region = params.get('region')
+
+        if mode == 'region' and region:
+            # 영역 스크린샷
+            screenshot = pyautogui.screenshot(region=(
+                region['x'],
+                region['y'],
+                region['width'],
+                region['height']
+            ))
+            self.log(f"    📸 영역 스크린샷: ({region['x']}, {region['y']}, {region['width']}x{region['height']})")
+        else:
+            # 전체 화면 스크린샷
+            screenshot = pyautogui.screenshot()
+            self.log(f"    📸 전체 화면 스크린샷")
+
         screenshot.save(filepath)
-        self.log(f"    💾 스크린샷 저장: {filepath}")
+        self.log(f"    💾 저장 위치: {filepath}")
 
 

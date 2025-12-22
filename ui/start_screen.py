@@ -41,7 +41,7 @@ class StartScreen(tk.Frame):
         # 새 프로젝트 버튼
         new_btn = tk.Button(
             button_frame,
-            text="새 프로젝트 만들기",
+            text="새 프로젝트",
             font=("맑은 고딕", 14, "bold"),
             bg='#3498db',
             fg='white',
@@ -54,7 +54,7 @@ class StartScreen(tk.Frame):
         # 체인 실행 버튼
         chain_btn = tk.Button(
             button_frame,
-            text="🔗 체인 실행",
+            text="🔗 체인 생성",
             font=("맑은 고딕", 14, "bold"),
             bg='#9b59b6',
             fg='white',
@@ -92,6 +92,19 @@ class StartScreen(tk.Frame):
             padx=15,
             pady=5
         ).pack(side='right')
+
+        # 자동시작 버튼
+        tk.Button(
+            header_frame,
+            text="🚀 자동시작",
+            font=("맑은 고딕", 10),
+            bg='#27ae60',
+            fg='white',
+            cursor='hand2',
+            command=self.show_autostart_settings,
+            padx=15,
+            pady=5
+        ).pack(side='right', padx=(0, 10))
         
         # 최근 프로젝트 리스트 (스크롤 추가) ⭐
         self.setup_scrollable_projects(content_frame)
@@ -201,29 +214,45 @@ class StartScreen(tk.Frame):
             print(f"프로젝트 로드 오류: {e}")
             return
 
-        # 카드 프레임
+        # 자동시작 프로젝트인지 확인
+        is_autostart = False
+        try:
+            with open('settings.json', 'r', encoding='utf-8') as f:
+                settings = json.load(f)
+                autostart_path = settings.get('autostart')
+                if autostart_path and autostart_path == filepath:
+                    is_autostart = True
+        except:
+            pass
+
+        # 카드 프레임 (자동시작 프로젝트는 배경색 변경)
+        card_bg = '#d5f4e6' if is_autostart else '#ecf0f1'
         card = tk.Frame(
             self.recent_frame,
-            bg='#ecf0f1',
+            bg=card_bg,
             relief='raised',
             borderwidth=1
         )
         card.pack(fill='both', expand=True, padx=15,pady=(0,10))
 
         # 좌측 정보 영역
-        info_frame = tk.Frame(card, bg='#ecf0f1')
+        info_frame = tk.Frame(card, bg=card_bg)
         info_frame.pack(side='left', fill='both', expand=True, padx=(20,30), pady=10)
 
         # 아이콘 선택
         icon = "🔗" if item_type == 'chain' else "📁"
+        # 자동시작 프로젝트는 ⭐ 추가
+        if is_autostart:
+            icon = f"⭐ {icon}"
 
         # 프로젝트/체인 이름
         name_label = tk.Label(
             info_frame,
             text=f"{icon} {project_name}",
             font=("맑은 고딕", 12, "bold"),
-            bg='#ecf0f1',
-            anchor='w'
+            bg=card_bg,
+            anchor='w',
+            fg='#27ae60' if is_autostart else '#2c3e50'
         )
         name_label.pack(anchor='w')
 
@@ -233,7 +262,7 @@ class StartScreen(tk.Frame):
             text=description,
             font=("맑은 고딕", 9),
             fg='#7f8c8d',
-            bg='#ecf0f1',
+            bg=card_bg,
             anchor='w'
         )
         desc_label.pack(anchor='w', pady=(2, 0))
@@ -244,17 +273,17 @@ class StartScreen(tk.Frame):
             text=f"마지막 수정: {modified_time.strftime('%Y-%m-%d %H:%M')}",
             font=("맑은 고딕", 8),
             fg='#95a5a6',
-            bg='#ecf0f1',
+            bg=card_bg,
             anchor='w'
         )
         time_label.pack(anchor='w', pady=(2, 0))
 
         # 우측 버튼 영역
-        button_frame = tk.Frame(card, bg='#ecf0f1')
+        button_frame = tk.Frame(card, bg=card_bg)
         button_frame.pack(side='right', padx=(30,20), pady=5)
 
         # 열기 버튼
-        open_text = "실행" if item_type == 'chain' else "열기"
+        open_text = "열기"
         open_btn = tk.Button(
             button_frame,
             text=open_text,
@@ -438,3 +467,39 @@ class StartScreen(tk.Frame):
         """전역 단축키 설정"""
         from ui.hotkey_settings_dialog import HotkeySettingsDialog
         HotkeySettingsDialog(self.parent)
+
+    def show_autostart_settings(self):
+        """자동시작 프로젝트 설정"""
+        from ui.dialogs import AutostartSelectDialog
+        import json
+
+        dialog = AutostartSelectDialog(self.parent)
+        self.parent.wait_window(dialog)
+
+        if dialog.result is not None:
+            # settings.json 읽기
+            try:
+                with open('settings.json', 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+            except:
+                settings = {"hotkeys": {}}
+
+            # 자동시작 설정 업데이트
+            if dialog.result['filepath'] is None:
+                # 자동시작 해제
+                settings['autostart'] = None
+                messagebox.showinfo("완료", "자동시작이 해제되었습니다.")
+            else:
+                # 자동시작 설정
+                settings['autostart'] = dialog.result['filepath']
+                messagebox.showinfo("완료", f"'{dialog.result['name']}'이(가) 자동시작으로 설정되었습니다.")
+
+            # settings.json 저장
+            try:
+                with open('settings.json', 'w', encoding='utf-8') as f:
+                    json.dump(settings, f, ensure_ascii=False, indent=2)
+
+                # 프로젝트 목록 새로고침 (자동시작 표시 업데이트)
+                self.load_recent_projects()
+            except Exception as e:
+                messagebox.showerror("오류", f"설정 저장 중 오류가 발생했습니다:\n{str(e)}")
