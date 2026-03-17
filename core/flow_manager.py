@@ -68,6 +68,19 @@ class FlowManager:
             action['params'].update(params)
             return True
         return False
+
+    def duplicate_action(self, action_id):
+        """액션 복제 (바로 아래에 삽입)"""
+        import copy
+        action = self.get_action(action_id)
+        if not action:
+            return None
+        idx = self.get_action_index(action_id)
+        new_action = copy.deepcopy(action)
+        new_action['id'] = self.next_id
+        self.next_id += 1
+        self.flow_sequence.insert(idx + 1, new_action)
+        return new_action
     
     def load_from_list(self, action_list):
         """리스트에서 플로우 로드"""

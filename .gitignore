@@ -12,6 +12,8 @@ Thumbs.db
 
 # 파이썬/Node 등 언어별 캐시
 __pycache__/
+*.pyc
+*.pyo
 node_modules/
 
 # 빌드 디렉토리

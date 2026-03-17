@@ -80,6 +80,28 @@ class StartScreen(tk.Frame):
         )
         recent_label.pack(side='left')
 
+        # 프로젝트 검색
+        self.search_var = tk.StringVar()
+        self.search_var.trace_add('write', lambda *args: self.load_recent_projects())
+        search_entry = tk.Entry(
+            header_frame,
+            textvariable=self.search_var,
+            font=("맑은 고딕", 9),
+            width=15,
+            fg='#7f8c8d'
+        )
+        search_entry.pack(side='left', padx=(15, 0))
+        search_entry.insert(0, "")
+        # placeholder
+        def on_focus_in(e):
+            if search_entry.get() == "":
+                search_entry.config(fg='#2c3e50')
+        def on_focus_out(e):
+            if search_entry.get() == "":
+                search_entry.config(fg='#7f8c8d')
+        search_entry.bind('<FocusIn>', on_focus_in)
+        search_entry.bind('<FocusOut>', on_focus_out)
+
         # 단축키 설정 버튼
         tk.Button(
             header_frame,
@@ -189,9 +211,25 @@ class StartScreen(tk.Frame):
             key=lambda x: os.path.getmtime(os.path.join('projects', x)),
             reverse=True
         )
-        
-        # 전체 프로젝트 표시 (5개 제한 제거) ⭐
+
+        # 검색 필터 적용
+        search_term = ''
+        if hasattr(self, 'search_var'):
+            search_term = self.search_var.get().strip().lower()
+
+        # 전체 프로젝트 표시 (검색 필터 포함)
         for idx, filename in enumerate(json_files):
+            if search_term:
+                # 파일명 또는 프로젝트명에 검색어 포함 여부
+                filepath = os.path.join('projects', filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    project_name = data.get('name', '').lower()
+                    if search_term not in project_name and search_term not in filename.lower():
+                        continue
+                except Exception:
+                    continue
             self.create_project_card(filename, idx)
     
     def create_project_card(self, filename, index):
@@ -222,7 +260,7 @@ class StartScreen(tk.Frame):
                 autostart_path = settings.get('autostart')
                 if autostart_path and autostart_path == filepath:
                     is_autostart = True
-        except:
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
             pass
 
         # 카드 프레임 (자동시작 프로젝트는 배경색 변경)
@@ -481,7 +519,7 @@ class StartScreen(tk.Frame):
             try:
                 with open('settings.json', 'r', encoding='utf-8') as f:
                     settings = json.load(f)
-            except:
+            except (FileNotFoundError, json.JSONDecodeError, OSError):
                 settings = {"hotkeys": {}}
 
             # 자동시작 설정 업데이트

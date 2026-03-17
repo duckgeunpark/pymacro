@@ -233,7 +233,7 @@ class ImageNameDialog(tk.Toplevel):
     def __init__(self, parent, title="이미지 이름", initial_name="", initial_confidence=80):
         super().__init__(parent)
         self.title(title)
-        self.geometry("350x220")
+        self.geometry("250x130")
         self.resizable(False, False)
 
         self.result = None  # {'name': str, 'confidence': float}
@@ -254,23 +254,23 @@ class ImageNameDialog(tk.Toplevel):
 
     def setup_ui(self, initial_name, initial_confidence):
         """UI 구성"""
-        main_frame = tk.Frame(self, padx=20, pady=15)
+        main_frame = tk.Frame(self, padx=20, pady=10)
         main_frame.pack(fill='both', expand=True)
 
         # 이름 입력
+        name_frame = tk.Frame(main_frame)
         tk.Label(
-            main_frame,
-            text="이미지 이름:",
+            name_frame, 
+            text="이름:", 
             font=("맑은 고딕", 10, "bold")
-        ).pack(anchor='w', pady=(5, 5))
-
+        ).pack(side='left', padx=(0,5))
         self.name_entry = tk.Entry(
-            main_frame,
-            font=("맑은 고딕", 10),
-            width=30
-        )
-        self.name_entry.pack(fill='x', pady=(0, 15))
-
+            name_frame, 
+            font=("맑은 고딕", 10), 
+            width=10
+            ); 
+        self.name_entry.pack(side='left', fill='x', expand=True)
+        name_frame.pack(fill='x', pady=(5,10))
         if initial_name:
             self.name_entry.insert(0, initial_name)
 
@@ -278,7 +278,7 @@ class ImageNameDialog(tk.Toplevel):
 
         # 정확도 입력
         confidence_frame = tk.Frame(main_frame)
-        confidence_frame.pack(fill='x', pady=(0, 20))
+        confidence_frame.pack(fill='x', pady=(0, 10))
 
         tk.Label(
             confidence_frame,
@@ -296,7 +296,7 @@ class ImageNameDialog(tk.Toplevel):
             to=100,
             textvariable=self.confidence_var,
             font=("맑은 고딕", 10),
-            width=10
+            width=5
         )
         confidence_spinbox.pack(side='left', padx=5)
 
@@ -315,7 +315,7 @@ class ImageNameDialog(tk.Toplevel):
 
         # 버튼
         btn_frame = tk.Frame(main_frame)
-        btn_frame.pack()
+        btn_frame.pack(pady=10)
 
         tk.Button(
             btn_frame,
@@ -324,9 +324,9 @@ class ImageNameDialog(tk.Toplevel):
             bg='#3498db',
             fg='white',
             padx=25,
-            pady=8,
+            pady=5,
             command=self.on_ok
-        ).pack(side='left', padx=5)
+        ).pack(side='left', padx=10)
 
         tk.Button(
             btn_frame,
@@ -335,9 +335,9 @@ class ImageNameDialog(tk.Toplevel):
             bg='#95a5a6',
             fg='white',
             padx=25,
-            pady=8,
+            pady=5,
             command=self.on_cancel
-        ).pack(side='left', padx=5)
+        ).pack(side='left', padx=10)
 
         # Enter 키로 확인
         self.name_entry.bind('<Return>', lambda e: self.on_ok())

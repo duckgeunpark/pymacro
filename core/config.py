@@ -3,6 +3,7 @@
 """
 import os
 import sys
+import json
 
 
 class AppConfig:
@@ -12,6 +13,9 @@ class AppConfig:
     _icon_path = None
     _app_path = None
     _initialized = False
+
+    # 앱 버전
+    VERSION = "1.0.0"
 
     def __new__(cls):
         if cls._instance is None:
@@ -45,12 +49,10 @@ class AppConfig:
         """애플리케이션 경로 반환"""
         try:
             if getattr(sys, 'frozen', False):
-                # exe로 실행 중
                 return os.path.dirname(sys.executable)
             else:
-                # 스크립트로 실행 중
                 return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        except:
+        except (OSError, AttributeError):
             return os.getcwd()
 
     def _find_icon_path(self):
@@ -60,7 +62,7 @@ class AppConfig:
             if os.path.exists(icon_path):
                 return icon_path
             return None
-        except:
+        except (OSError, TypeError):
             return None
 
     def create_directories(self):
@@ -78,8 +80,6 @@ class AppConfig:
 
     def create_settings_file(self):
         """settings.json 파일 생성 (없는 경우)"""
-        import json
-
         settings_path = 'settings.json'
 
         if not os.path.exists(settings_path):
@@ -97,7 +97,7 @@ class AppConfig:
                 with open(settings_path, 'w', encoding='utf-8') as f:
                     json.dump(default_settings, f, ensure_ascii=False, indent=2)
                 print(f"[INFO] settings.json 파일이 생성되었습니다.")
-            except Exception as e:
+            except (OSError, IOError) as e:
                 print(f"[WARNING] settings.json 생성 실패: {e}")
 
 

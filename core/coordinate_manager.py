@@ -67,8 +67,6 @@ class CoordinateManager:
             print(f"썸네일 캡처 오류: {e}")
             return x, y, None
     
-        return False
-    
     @staticmethod
     def _capture_region_thumbnail(x, y, w, h):
         """영역 썸네일 캡처"""

@@ -3,6 +3,7 @@
 """
 import pyautogui
 import time
+import threading
 import pyperclip
 from datetime import datetime
 import os
@@ -11,6 +12,21 @@ import tempfile
 import cv2
 import numpy as np
 from PIL import ImageGrab
+
+# FAILSAFE 활성화 (마우스를 좌상단 모서리로 이동하면 긴급 중지)
+pyautogui.FAILSAFE = True
+
+# 실행 관련 기본값 (설정으로 오버라이드 가능)
+DEFAULT_PRE_DELAY = 0.2
+DEFAULT_POST_DELAY = 0.2
+DEFAULT_TYPING_DELAY = 0.1
+DEFAULT_PASTE_DELAY = 0.2
+DEFAULT_IMAGE_TIMEOUT = 10
+DEFAULT_IMAGE_POLL_INTERVAL = 0.5
+DEFAULT_IMAGE_CONFIDENCE = 0.8
+DEFAULT_WAIT_IMAGE_CONFIDENCE = 0.6
+PAUSE_CHECK_INTERVAL = 0.1
+
 
 class MacroExecutor:
     """매크로 실행 엔진"""
@@ -24,29 +40,57 @@ class MacroExecutor:
         self.project_filepath = project_filepath
 
         self.is_running = False
-        self.is_paused = False
-        self.should_stop = False
+        # threading.Event로 변경 (thread-safe)
+        self._pause_event = threading.Event()
+        self._pause_event.set()  # 초기 상태: 실행 중 (not paused)
+        self._stop_event = threading.Event()
 
         self.current_row = 0
         self.current_action = 0
 
-        # 엑셀 루프 실행 시 사용되는 데이터 (action_type_variable에서 접근)
+        # 엑셀 루프 실행 시 사용되는 데이터
         self.all_excel_data = {}  # {excel_id: dataframe}
         self.excel_row_indices = {}  # {excel_id: current_row_index}
         self.excel_start_row = 0
         self.infinite_loop = False
 
+        # 이미지 캐시 (base64 디코딩 결과 재사용)
+        self._image_cache = {}  # {image_id: {'tmp_path': str, 'np_array': ndarray, 'gray': ndarray}}
+
         # 로그
         self.log_callback = None
         self.progress_callback = None
         self.error_callback = None
-    
+
+    # threading.Event 기반 프로퍼티 (하위 호환성)
+    @property
+    def is_paused(self):
+        return not self._pause_event.is_set()
+
+    @is_paused.setter
+    def is_paused(self, value):
+        if value:
+            self._pause_event.clear()
+        else:
+            self._pause_event.set()
+
+    @property
+    def should_stop(self):
+        return self._stop_event.is_set()
+
+    @should_stop.setter
+    def should_stop(self, value):
+        if value:
+            self._stop_event.set()
+        else:
+            self._stop_event.clear()
+
     def set_callbacks(self, log_cb=None, progress_cb=None, error_cb=None):
         """콜백 함수 설정"""
         self.log_callback = log_cb
         self.progress_callback = progress_cb
         self.error_callback = error_cb
-    
+
     def log(self, message):
         """로그 출력"""
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -54,33 +98,66 @@ class MacroExecutor:
         print(log_msg)
         if self.log_callback:
             self.log_callback(log_msg)
-    
+
     def update_progress(self, current, total, status=""):
         """진행상황 업데이트"""
         if self.progress_callback:
             self.progress_callback(current, total, status)
-    
+
     def report_error(self, error_msg, screenshot=None):
         """에러 보고"""
-        self.log(f"❌ 에러: {error_msg}")
+        self.log(f"에러: {error_msg}")
         if self.error_callback:
             self.error_callback(error_msg, screenshot)
-    
+
+    def _get_cached_image_path(self, image):
+        """이미지 캐시에서 임시 파일 경로 반환 (없으면 생성)"""
+        image_id = image['id']
+        if image_id not in self._image_cache:
+            img_data = base64.b64decode(image['data'])
+            tmp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+            tmp_file.write(img_data)
+            tmp_file.close()
+
+            # OpenCV용 numpy 배열도 캐시
+            nparr = np.frombuffer(img_data, np.uint8)
+            template = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+
+            self._image_cache[image_id] = {
+                'tmp_path': tmp_file.name,
+                'np_array': template,
+                'gray': template_gray,
+            }
+
+        return self._image_cache[image_id]
+
+    def _cleanup_image_cache(self):
+        """이미지 캐시 정리 (임시 파일 삭제)"""
+        for cache in self._image_cache.values():
+            try:
+                if os.path.exists(cache['tmp_path']):
+                    os.unlink(cache['tmp_path'])
+            except OSError:
+                pass
+        self._image_cache.clear()
+
     def start(self):
         """매크로 실행 시작"""
         self.is_running = True
-        self.should_stop = False
-        self.log("🚀 매크로 실행 시작")
-        
+        self._stop_event.clear()
+        self._pause_event.set()
+        self.log("매크로 실행 시작")
+
         settings = self.project_data.get('settings', {}).get('execution', {})
         mode = settings.get('mode', 'excel_loop')
 
         if mode == 'excel_loop' and not self.excel_mgr.excel_sources:
-            self.log("⚠️ 엑셀 데이터가 없어 단순 플로우 반복 모드로 전환합니다.")
+            self.log("엑셀 데이터가 없어 단순 플로우 반복 모드로 전환합니다.")
             mode = 'flow_repeat'
             if 'repeat_count' not in settings:
                 settings['repeat_count'] = 1
-        
+
         try:
             if mode == 'excel_loop':
                 self.execute_excel_loop(settings)
@@ -88,38 +165,38 @@ class MacroExecutor:
                 self.execute_flow_repeat(settings)
             elif mode == 'infinite':
                 self.execute_infinite(settings)
-            
-            self.log("✅ 매크로 실행 완료")
-        
+
+            self.log("매크로 실행 완료")
+
         except Exception as e:
             self.report_error(f"실행 중 오류 발생: {str(e)}")
-        
+
         finally:
             self.is_running = False
-    
+            self._cleanup_image_cache()
+
     def pause(self):
         """일시정지"""
-        self.is_paused = True
-        self.log("⏸️ 일시정지")
-    
+        self._pause_event.clear()
+        self.log("일시정지")
+
     def resume(self):
         """재개"""
-        self.is_paused = False
-        self.log("▶️ 재개")
-    
+        self._pause_event.set()
+        self.log("재개")
+
     def stop(self):
         """중지"""
-        self.should_stop = True
-        self.log("⏹️ 중지 요청")
-    
+        self._stop_event.set()
+        self._pause_event.set()  # pause 상태에서도 즉시 중지 가능하도록
+        self.log("중지 요청")
+
     def execute_excel_loop(self, settings):
         """엑셀 행 반복 모드 (무한반복 지원, 각 엑셀 독립 인덱스)"""
-        # 모든 엑셀 소스 로드
         if not self.excel_mgr.excel_sources:
             self.report_error("엑셀 데이터 소스가 없습니다.")
             return
 
-        # 첫 번째 엑셀의 행 수를 기준으로 반복
         primary_source = self.excel_mgr.excel_sources[0]
         primary_df = self.excel_mgr.load_excel_data(primary_source['id'])
 
@@ -127,89 +204,76 @@ class MacroExecutor:
             self.report_error("메인 엑셀 데이터를 로드할 수 없습니다.")
             return
 
-        # 모든 엑셀 데이터를 딕셔너리로 관리 {excel_id: dataframe}
         self.all_excel_data = {primary_source.get('id', 1): primary_df}
 
-        # 나머지 엑셀 소스들도 로드
         for source in self.excel_mgr.excel_sources[1:]:
             df = self.excel_mgr.load_excel_data(source['id'])
             if df is not None:
                 self.all_excel_data[source.get('id', len(self.all_excel_data) + 1)] = df
             else:
-                self.log(f"⚠️ 엑셀{source.get('id')} 로드 실패: {source['name']}")
+                self.log(f"엑셀{source.get('id')} 로드 실패: {source['name']}")
 
-        start_row = settings.get('excel_start_row', 1) - 1  # 0-based index
+        start_row = settings.get('excel_start_row', 1) - 1
         self.excel_start_row = start_row
         end_row = settings.get('excel_end_row', None)
         if end_row is None:
             end_row = len(primary_df)
 
         total_rows = end_row - start_row
-        self.infinite_loop = settings.get('excel_infinite_loop', False)  # 무한반복 옵션
-        repeat_count = settings.get('repeat_count', 1)  # 반복 횟수
+        self.infinite_loop = settings.get('excel_infinite_loop', False)
+        repeat_count = settings.get('repeat_count', 1)
 
-        # 각 엑셀별 독립 인덱스 관리 {excel_id: current_row_index}
         self.excel_row_indices = {excel_id: start_row for excel_id in self.all_excel_data.keys()}
 
         if self.infinite_loop:
-            self.log(f"📊 엑셀 무한반복 모드: 메인 엑셀 {start_row+1}행 ~ {end_row}행 (각 엑셀 독립 반복)")
-            # 각 엑셀의 행 수 출력
+            self.log(f"엑셀 무한반복 모드: 메인 엑셀 {start_row+1}행 ~ {end_row}행 (각 엑셀 독립 반복)")
             for excel_id, df in self.all_excel_data.items():
                 source_name = self._get_excel_source_name(excel_id)
                 self.log(f"   - {source_name}: {len(df)}행")
         else:
-            self.log(f"📊 엑셀 행 반복 모드: {start_row+1}행 ~ {end_row}행 (총 {total_rows}행) × {repeat_count}회")
+            self.log(f"엑셀 행 반복 모드: {start_row+1}행 ~ {end_row}행 (총 {total_rows}행) x {repeat_count}회")
 
-        loop_count = 0  # 반복 횟수
+        loop_count = 0
 
-        while True:  # 무한 루프 (또는 repeat_count까지)
+        while True:
             loop_count += 1
 
             if self.infinite_loop:
-                self.log(f"\n🔄 === 반복 {loop_count}회차 시작 ===")
+                self.log(f"\n=== 반복 {loop_count}회차 시작 ===")
             else:
                 if loop_count > 1:
-                    self.log(f"\n🔄 === 반복 {loop_count}/{repeat_count}회차 시작 ===")
+                    self.log(f"\n=== 반복 {loop_count}/{repeat_count}회차 시작 ===")
 
             for row_idx in range(start_row, end_row):
                 if self.should_stop:
-                    self.log(f"⏹️ 중지됨 (반복 {loop_count}회차, 행 {row_idx + 1})")
+                    self.log(f"중지됨 (반복 {loop_count}회차, 행 {row_idx + 1})")
                     return
 
                 self.current_row = row_idx + 1
 
-                # 각 엑셀의 현재 행 데이터를 딕셔너리로 구성 (독립 인덱스 사용)
                 all_row_data = {}
                 for excel_id, df in self.all_excel_data.items():
-                    # 각 엑셀의 독립적인 행 인덱스 사용
                     excel_row_idx = self.excel_row_indices[excel_id]
 
                     if excel_row_idx < len(df):
                         all_row_data[excel_id] = df.iloc[excel_row_idx].to_dict()
                     else:
-                        # 행 인덱스가 끝나면 처음으로 돌아감
                         self.excel_row_indices[excel_id] = start_row
                         all_row_data[excel_id] = df.iloc[start_row].to_dict()
 
-                    # 다음 행으로 인덱스 증가
                     self.excel_row_indices[excel_id] += 1
 
-                    # 끝에 도달하면 처음으로 (다음 반복을 위해)
                     if self.excel_row_indices[excel_id] >= len(df):
                         if self.infinite_loop:
                             self.excel_row_indices[excel_id] = start_row
                             source_name = self._get_excel_source_name(excel_id)
-                            self.log(f"   🔄 {source_name} 끝 도달 → 처음부터 반복")
-                            # 해당 엑셀의 중복 체크 배열 초기화
+                            self.log(f"   {source_name} 끝 도달 -> 처음부터 반복")
                             self.excel_mgr.reset_pasted_values(excel_id)
 
-                # 현재 각 엑셀의 행 번호 로그
                 row_info_parts = []
                 for excel_id in self.all_excel_data.keys():
-                    # 현재 사용된 행 번호 (증가 전 값)
                     used_row = self.excel_row_indices[excel_id]
                     if used_row == start_row:
-                        # 방금 리셋되었으면 마지막 행이었던 것
                         df = self.all_excel_data[excel_id]
                         used_row = len(df)
                     source_name = self._get_excel_source_name(excel_id)
@@ -224,7 +288,6 @@ class MacroExecutor:
 
                 self.update_progress(row_idx - start_row + 1, total_rows, status)
 
-                # 플로우 실행
                 try:
                     self.execute_flow(all_row_data)
                 except Exception as e:
@@ -242,33 +305,26 @@ class MacroExecutor:
                             try:
                                 self.execute_flow(all_row_data)
                                 break
-                            except:
+                            except Exception:
                                 if attempt == retry_count - 1:
                                     self.report_error(f"행 {self.current_row} 재시도 실패. 건너뜁니다.")
 
-            # 무한반복이 아니면 repeat_count만큼 반복 후 종료
             if not self.infinite_loop:
                 if loop_count >= repeat_count:
-                    self.log(f"✅ 설정된 반복 횟수({repeat_count}회) 완료")
+                    self.log(f"설정된 반복 횟수({repeat_count}회) 완료")
                     break
                 else:
-                    # 다음 회차를 위해 엑셀 인덱스 리셋
                     self.excel_row_indices = {excel_id: start_row for excel_id in self.all_excel_data.keys()}
-                    # 중복 체크 배열 초기화
                     for excel_id in self.all_excel_data.keys():
                         self.excel_mgr.reset_pasted_values(excel_id)
-                    self.log(f"✅ 반복 {loop_count}/{repeat_count}회차 완료. 다시 시작...")
-                    time.sleep(0.5)
-
-            # 무한반복일 경우 다시 처음부터 (메인 엑셀만 리셋, 나머지는 독립 인덱스 유지)
+                    self.log(f"반복 {loop_count}/{repeat_count}회차 완료. 다시 시작...")
+                    time.sleep(DEFAULT_PASTE_DELAY)
             else:
-                # 엑셀 인덱스 리셋
                 self.excel_row_indices = {excel_id: start_row for excel_id in self.all_excel_data.keys()}
-                # 중복 체크 배열 초기화
                 for excel_id in self.all_excel_data.keys():
                     self.excel_mgr.reset_pasted_values(excel_id)
-                self.log(f"✅ 반복 {loop_count}회차 완료. 메인 엑셀 처음부터 다시 시작...")
-                time.sleep(0.5)  # 약간의 딜레이
+                self.log(f"반복 {loop_count}회차 완료. 메인 엑셀 처음부터 다시 시작...")
+                time.sleep(DEFAULT_PASTE_DELAY)
 
     def _get_excel_source_name(self, excel_id):
         """엑셀 ID로 소스 이름 조회"""
@@ -277,239 +333,203 @@ class MacroExecutor:
                 return source.get('name', f'엑셀{excel_id}')
         return f'엑셀{excel_id}'
 
-    
     def execute_flow_repeat(self, settings):
         """플로우 반복 모드"""
         repeat_count = settings.get('repeat_count', 1)
-        self.log(f"🔁 플로우 반복 모드: {repeat_count}회")
-        
+        self.log(f"플로우 반복 모드: {repeat_count}회")
+
         for i in range(repeat_count):
             if self.should_stop:
                 break
-            
+
             self.log(f"\n--- 반복 {i+1}/{repeat_count} ---")
             self.update_progress(i+1, repeat_count, f"반복 {i+1} 실행 중")
-            
+
             try:
                 self.execute_flow()
             except Exception as e:
                 self.report_error(f"반복 {i+1}에서 오류: {str(e)}")
-    
+
     def execute_infinite(self, settings):
         """무한 반복 모드"""
-        self.log("♾️ 무한 반복 모드 (중지할 때까지 계속)")
-        
+        self.log("무한 반복 모드 (중지할 때까지 계속)")
+
         iteration = 0
         while not self.should_stop:
             iteration += 1
             self.log(f"\n--- 반복 {iteration} ---")
             self.update_progress(iteration, -1, f"반복 {iteration} 실행 중")
-            
+
             try:
                 self.execute_flow()
             except Exception as e:
                 self.report_error(f"반복 {iteration}에서 오류: {str(e)}")
-    
+
     def execute_flow(self, row_data=None):
         """플로우 시퀀스 실행"""
         for idx, action in enumerate(self.flow_mgr.flow_sequence):
-            # 일시정지 체크
-            while self.is_paused and not self.should_stop:
-                time.sleep(0.1)
-            
+            # 일시정지 체크 (Event.wait으로 thread-safe 대기)
+            self._pause_event.wait()
+
             if self.should_stop:
                 break
-            
+
             self.current_action = idx + 1
-            
+
             try:
                 self.execute_action(action, row_data)
             except Exception as e:
                 raise Exception(f"액션 {idx+1} 실행 오류: {str(e)}")
-    
+
     def execute_action(self, action, row_data=None):
         """개별 액션 실행"""
         action_type = action['type']
         params = action['params']
-        
-        # 액션 로그
+
         display_text = self.flow_mgr.get_action_display_text(
             action, self.coord_mgr, self.excel_mgr, self.image_mgr
         )
-        self.log(f"  ▶ {display_text}")
-        
+        self.log(f"  > {display_text}")
+
         if action_type == 'click_coord':
             self.action_click_coord(params)
-        
         elif action_type == 'click_image':
             self.action_click_image(params)
-        
         elif action_type == 'type_text':
             self.action_type_text(params)
-        
         elif action_type == 'type_variable':
             self.action_type_variable(params, row_data)
-        
         elif action_type == 'key_press':
             self.action_key_press(params)
-        
         elif action_type == 'hotkey':
             self.action_hotkey(params)
-        
         elif action_type == 'paste':
             self.action_paste()
-
         elif action_type == 'mouse_scroll':
             self.action_mouse_scroll(params)
-
         elif action_type == 'delay':
             self.action_delay(params)
-        
         elif action_type == 'wait_image':
             self.action_wait_image(params)
-        
         elif action_type == 'screenshot':
             self.action_screenshot(params)
-        
         elif action_type == 'memo':
-            pass  # 메모는 실행하지 않음
-
-        
+            pass
         else:
-            self.log(f"    ⚠️ 알 수 없는 액션 타입: {action_type}")
-    
+            self.log(f"    알 수 없는 액션 타입: {action_type}")
+
     def action_click_coord(self, params):
         """좌표 클릭"""
         coord_id = params.get('coord_id')
         coord = self.coord_mgr.get_coordinate(coord_id)
-        
+
         if not coord:
             raise Exception(f"좌표 ID {coord_id}를 찾을 수 없습니다.")
-        
+
         x, y = coord['x'], coord['y']
         click_type = params.get('click_type', 'left')
         click_count = params.get('click_count', 1)
-        
-        pre_delay = params.get('pre_delay', 0.2)
-        post_delay = params.get('post_delay', 0.2)
-        
+
+        pre_delay = params.get('pre_delay', DEFAULT_PRE_DELAY)
+        post_delay = params.get('post_delay', DEFAULT_POST_DELAY)
+
         time.sleep(pre_delay)
-        
+
         if click_type == 'left':
             pyautogui.click(x, y, clicks=click_count)
         elif click_type == 'right':
             pyautogui.rightClick(x, y)
         elif click_type == 'middle':
             pyautogui.middleClick(x, y)
-        
+
         time.sleep(post_delay)
-    
+
     def action_click_image(self, params):
-        """이미지 클릭 (수정됨)"""
+        """이미지 클릭 (캐시 사용)"""
         image_id = params.get('image_id')
         image = self.image_mgr.get_image(image_id)
-        
+
         if not image:
             raise Exception(f"이미지 ID {image_id}를 찾을 수 없습니다.")
-        
-        self.log(f"    🔍 이미지 '{image['name']}' 찾는 중...")
-        
+
+        self.log(f"    이미지 '{image['name']}' 찾는 중...")
+
         try:
-            # base64 이미지를 임시 파일로 저장
-            img_data = base64.b64decode(image['data'])
-            
-            # 임시 파일 생성
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-                tmp_file.write(img_data)
-                tmp_path = tmp_file.name
-            
-            # PyAutoGUI로 이미지 찾기
-            confidence = image.get('confidence', 0.8)
+            cache = self._get_cached_image_path(image)
+            tmp_path = cache['tmp_path']
+
+            confidence = image.get('confidence', DEFAULT_IMAGE_CONFIDENCE)
             location = pyautogui.locateOnScreen(tmp_path, confidence=confidence)
-            
-            # 임시 파일 삭제
-            os.unlink(tmp_path)
-            
+
             if location:
-                # 중심점 클릭
                 center = pyautogui.center(location)
-                self.log(f"    ✅ 이미지 발견: ({center.x}, {center.y})")
-                
-                time.sleep(0.2)
+                self.log(f"    이미지 발견: ({center.x}, {center.y})")
+
+                time.sleep(DEFAULT_PRE_DELAY)
                 pyautogui.click(center.x, center.y)
-                time.sleep(0.2)
+                time.sleep(DEFAULT_POST_DELAY)
             else:
                 raise Exception(f"이미지 '{image['name']}'을(를) 찾을 수 없습니다.")
-        
+
         except Exception as e:
             raise Exception(f"이미지 클릭 오류: {str(e)}")
-    
+
     def action_type_text(self, params):
         """텍스트 타이핑 (한글/영문 모두 지원 - pyperclip 사용)"""
         text = params.get('text', '')
-        
+
         try:
-            # 클립보드로 복사 후 붙여넣기 (모든 언어 지원)
             pyperclip.copy(text)
-            time.sleep(0.1)
+            time.sleep(DEFAULT_TYPING_DELAY)
             pyautogui.hotkey('ctrl', 'v')
-            time.sleep(0.2)
+            time.sleep(DEFAULT_PASTE_DELAY)
         except Exception as e:
-            self.log(f"    ⚠️ 타이핑 오류: {e}")
+            self.log(f"    타이핑 오류: {e}")
             raise Exception(f"텍스트 타이핑 실패: {str(e)}")
-    
+
     def action_type_variable(self, params, row_data):
         """변수 타이핑 (한글/영문 모두 지원 - pyperclip 사용)"""
         var_type = params.get('var_type')
         var_name = params.get('var_name', '')
-        excel_id = params.get('excel_id', 1)  # 기본값 1 (하위 호환성)
+        excel_id = params.get('excel_id', 1)
 
         if var_type == 'excel' and row_data:
-            # row_data가 딕셔너리의 딕셔너리인 경우 (다중 엑셀)
             if isinstance(row_data, dict) and excel_id in row_data:
                 text = str(row_data[excel_id].get(var_name, ''))
-            # row_data가 단순 딕셔너리인 경우 (기존 단일 엑셀, 하위 호환성)
             elif isinstance(row_data, dict) and var_name in row_data:
                 text = str(row_data.get(var_name, ''))
             else:
                 text = ''
 
-            # 엑셀 데이터인 경우 중복 체크 및 다음 행 찾기
             if text and var_type == 'excel' and excel_id in self.all_excel_data:
                 skip_count = 0
 
-                # 중복이 아닌 값이 나올 때까지 다음 행 탐색
                 while self.excel_mgr.is_duplicate(excel_id, text):
                     skip_count += 1
-                    self.log(f"    ⏭️ 중복 데이터 스킵 ({skip_count}번째): {text}")
+                    self.log(f"    중복 데이터 스킵 ({skip_count}번째): {text}")
 
-                    # 다음 행으로 인덱스 증가
                     df = self.all_excel_data[excel_id]
                     self.excel_row_indices[excel_id] += 1
 
-                    # 끝에 도달하면 처음으로
                     if self.excel_row_indices[excel_id] >= len(df):
                         if self.infinite_loop:
                             self.excel_row_indices[excel_id] = self.excel_start_row
                             source_name = self._get_excel_source_name(excel_id)
-                            self.log(f"    🔄 {source_name} 끝 도달 → 처음부터 반복")
-                            # 해당 엑셀의 중복 체크 배열 초기화
+                            self.log(f"    {source_name} 끝 도달 -> 처음부터 반복")
                             self.excel_mgr.reset_pasted_values(excel_id)
                         else:
-                            # 무한 루프가 아니면 더 이상 진행 불가
-                            self.log(f"    ⚠️ 엑셀 끝에 도달했지만 중복이 아닌 데이터 없음")
+                            self.log(f"    엑셀 끝에 도달했지만 중복이 아닌 데이터 없음")
                             return
 
-                    # 다음 행 데이터 가져오기
                     next_row_idx = self.excel_row_indices[excel_id]
                     if next_row_idx < len(df):
                         text = str(df.iloc[next_row_idx][var_name])
                     else:
-                        self.log(f"    ⚠️ 다음 행 데이터를 가져올 수 없음")
+                        self.log(f"    다음 행 데이터를 가져올 수 없음")
                         return
 
                 if skip_count > 0:
-                    self.log(f"    ✅ 중복 아닌 데이터 발견 (총 {skip_count}개 스킵): {text}")
+                    self.log(f"    중복 아닌 데이터 발견 (총 {skip_count}개 스킵): {text}")
 
         elif var_type == 'counter':
             text = str(self.current_row)
@@ -519,154 +539,132 @@ class MacroExecutor:
             text = ''
 
         try:
-            # 클립보드로 복사 후 붙여넣기 (모든 언어 지원)
             pyperclip.copy(text)
-            time.sleep(0.1)
+            time.sleep(DEFAULT_TYPING_DELAY)
             pyautogui.hotkey('ctrl', 'v')
-            time.sleep(0.2)
+            time.sleep(DEFAULT_PASTE_DELAY)
 
-            # 엑셀 데이터를 성공적으로 붙여넣었으면 기록
             if var_type == 'excel' and text:
                 self.excel_mgr.add_pasted_value(excel_id, text)
 
         except Exception as e:
-            self.log(f"    ⚠️ 변수 타이핑 오류: {e}")
+            self.log(f"    변수 타이핑 오류: {e}")
             raise Exception(f"변수 타이핑 실패: {str(e)}")
-    
+
     def action_key_press(self, params):
         """키 입력"""
         key = params.get('key', '')
 
-        # 조합키 처리 (예: ctrl+v, shift+a)
         if '+' in key:
             keys = key.split('+')
             pyautogui.hotkey(*keys)
         else:
-            # 단일 키
             pyautogui.press(key)
 
-        time.sleep(0.2)
-    
+        time.sleep(DEFAULT_POST_DELAY)
+
     def action_hotkey(self, params):
         """단축키"""
         keys = params.get('keys', [])
         pyautogui.hotkey(*keys)
-        time.sleep(0.2)
-    
+        time.sleep(DEFAULT_POST_DELAY)
+
     def action_paste(self):
         """붙여넣기"""
         pyautogui.hotkey('ctrl', 'v')
-        time.sleep(0.2)
+        time.sleep(DEFAULT_POST_DELAY)
 
     def action_mouse_scroll(self, params):
         """마우스 스크롤"""
         direction = params.get('direction', 'down')
         amount = params.get('amount', 3)
 
-        # pyautogui.scroll: 양수는 위로, 음수는 아래로
-        # amount를 100 단위로 변환 (더 부드러운 스크롤)
         scroll_amount = amount * 100 if direction == 'up' else -amount * 100
 
         pyautogui.scroll(scroll_amount)
-        time.sleep(0.2)
+        time.sleep(DEFAULT_POST_DELAY)
 
     def action_delay(self, params):
         """대기"""
         seconds = params.get('seconds', 1)
         time.sleep(seconds)
-        
+
     def action_wait_image(self, params):
-        """이미지가 나타날 때까지 대기 (OpenCV 기반 수정)"""
+        """이미지가 나타날 때까지 대기 (OpenCV 기반, 캐시 사용)"""
         image_id = params.get('image_id')
-        timeout = params.get('timeout', 10)
+        timeout = params.get('timeout', DEFAULT_IMAGE_TIMEOUT)
 
         image = self.image_mgr.get_image(image_id)
         if not image:
             raise Exception(f"이미지 ID {image_id}를 찾을 수 없습니다.")
 
-        self.log(f"   ⏳ 이미지 '{image['name']}' 대기 중... (최대 {timeout}초)")
+        self.log(f"   이미지 '{image['name']}' 대기 중... (최대 {timeout}초)")
 
         try:
-            # base64 디코딩 후 numpy 배열로 변환
-            img_data = base64.b64decode(image['data'])
-            nparr = np.frombuffer(img_data, np.uint8)
-            template = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+            cache = self._get_cached_image_path(image)
+            template_gray = cache['gray']
             w, h = template_gray.shape[::-1]
 
             start_time = time.time()
-            confidence_threshold = image.get('confidence', 0.6)
+            confidence_threshold = image.get('confidence', DEFAULT_WAIT_IMAGE_CONFIDENCE)
 
             while time.time() - start_time < timeout:
                 if self.should_stop:
                     raise Exception("사용자가 중지했습니다.")
 
-                # 화면 캡처 후 그레이스케일 변환
                 screen = np.array(ImageGrab.grab())
                 screen_gray = cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY)
 
-                # 템플릿 매칭
                 res = cv2.matchTemplate(screen_gray, template_gray, cv2.TM_CCOEFF_NORMED)
                 _, max_val, _, max_loc = cv2.minMaxLoc(res)
 
-                # 매칭 신뢰도가 기준 이상이면 위치 반환
                 if max_val >= confidence_threshold:
                     center_x = max_loc[0] + w // 2
                     center_y = max_loc[1] + h // 2
                     elapsed = time.time() - start_time
-                    self.log(f"   ✅ 이미지 발견! ({center_x}, {center_y}) - {elapsed:.1f}초 소요")
+                    self.log(f"   이미지 발견! ({center_x}, {center_y}) - {elapsed:.1f}초 소요")
                     return
 
-                time.sleep(0.5)
+                time.sleep(DEFAULT_IMAGE_POLL_INTERVAL)
 
             raise Exception(f"이미지 '{image['name']}'을(를) {timeout}초 내에 찾을 수 없습니다.")
 
         except Exception as e:
             raise Exception(f"이미지 대기 오류: {str(e)}")
-    
+
     def action_screenshot(self, params):
         """스크린샷 저장"""
         base_filename = params.get('filename', 'screenshot')
 
-        # 확장자가 있으면 제거
         if base_filename.endswith('.png'):
             base_filename = base_filename[:-4]
 
-        # 타임스탬프 추가
         filename = f"{base_filename}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
 
-        # 프로젝트 폴더 내부에 logs/screenshots 폴더 생성
         if self.project_filepath:
-            # 프로젝트 파일이 있는 디렉토리 경로
             project_dir = os.path.dirname(self.project_filepath)
             screenshot_dir = os.path.join(project_dir, 'logs', 'screenshots')
         else:
-            # 프로젝트 파일 경로가 없으면 현재 디렉토리 사용
             screenshot_dir = os.path.join('logs', 'screenshots')
 
         os.makedirs(screenshot_dir, exist_ok=True)
 
         filepath = os.path.join(screenshot_dir, filename)
 
-        # 영역 설정에 따라 스크린샷 촬영
         mode = params.get('mode', 'full')
         region = params.get('region')
 
         if mode == 'region' and region:
-            # 영역 스크린샷
             screenshot = pyautogui.screenshot(region=(
                 region['x'],
                 region['y'],
                 region['width'],
                 region['height']
             ))
-            self.log(f"    📸 영역 스크린샷: ({region['x']}, {region['y']}, {region['width']}x{region['height']})")
+            self.log(f"    영역 스크린샷: ({region['x']}, {region['y']}, {region['width']}x{region['height']})")
         else:
-            # 전체 화면 스크린샷
             screenshot = pyautogui.screenshot()
-            self.log(f"    📸 전체 화면 스크린샷")
+            self.log(f"    전체 화면 스크린샷")
 
         screenshot.save(filepath)
-        self.log(f"    💾 저장 위치: {filepath}")
-
-
+        self.log(f"    저장 위치: {filepath}")

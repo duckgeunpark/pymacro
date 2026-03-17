@@ -20,7 +20,7 @@ class MacroBuilderApp:
 
         # 메인 윈도우 설정
         self.root = tk.Tk()
-        self.root.title("dMax MacroBuilder")
+        self.root.title(f"dMax MacroBuilder v{config.VERSION}")
         self.root.geometry("550x670")
         self.root.minsize(550, 670)
 

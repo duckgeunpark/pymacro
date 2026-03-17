@@ -10,15 +10,23 @@ class ProjectManager:
     
     @staticmethod
     def save_project(filepath, project_data):
-        """프로젝트 저장"""
+        """프로젝트 저장 (Excel 경로를 상대경로로 변환)"""
         try:
-            # 수정 시간 업데이트
             project_data['modified_at'] = datetime.now().isoformat()
-            
-            # JSON 저장
+
+            # Excel 소스의 절대경로를 상대경로로 변환 (이식성 향상)
+            project_dir = os.path.dirname(os.path.abspath(filepath))
+            for source in project_data.get('excel_sources', []):
+                fp = source.get('filepath', '')
+                if fp and os.path.isabs(fp):
+                    try:
+                        source['filepath'] = os.path.relpath(fp, project_dir)
+                    except ValueError:
+                        pass  # 다른 드라이브인 경우 절대경로 유지
+
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(project_data, f, ensure_ascii=False, indent=4)
-            
+
             return True
         except Exception as e:
             print(f"프로젝트 저장 오류: {e}")

@@ -506,7 +506,7 @@ class ProjectEditor(tk.Frame):
         text_label.bind("<B1-Motion>", lambda e: self.on_drag_motion(e, item))
         text_label.bind("<ButtonRelease-1>", lambda e: self.on_drag_release(e, item, idx))
         
-        # 삭제 버튼만 유지 (드래그 앤 드롭으로 순서 변경 가능하므로 ▲▼ 버튼 제거)
+        # 삭제 버튼
         tk.Button(
             item,
             text="❌",
@@ -516,7 +516,19 @@ class ProjectEditor(tk.Frame):
             bg='#e74c3c',
             fg='white',
             command=lambda: self.delete_action(action['id'])
-        ).pack(side='right', padx=8, pady=5)
+        ).pack(side='right', padx=(0, 8), pady=5)
+
+        # 복제 버튼
+        tk.Button(
+            item,
+            text="📋",
+            font=("맑은 고딕", 9),
+            width=3,
+            height=1,
+            bg='#3498db',
+            fg='white',
+            command=lambda: self.duplicate_action(action['id'])
+        ).pack(side='right', padx=(0, 2), pady=5)
     
     # 좌표 추가
     def add_coordinate_dialog(self):
@@ -1189,6 +1201,12 @@ class ProjectEditor(tk.Frame):
         if self.flow_mgr.move_action_down(action_id):
             self.refresh_flow_list()
     
+    def duplicate_action(self, action_id):
+        """액션 복제"""
+        new_action = self.flow_mgr.duplicate_action(action_id)
+        if new_action:
+            self.refresh_flow_list()
+
     def delete_action(self, action_id):
         """액션 삭제"""
         if messagebox.askyesno("확인", "이 액션을 삭제하시겠습니까?"):

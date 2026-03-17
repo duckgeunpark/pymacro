@@ -403,17 +403,33 @@ class ProjectRunner(tk.Frame):
         # 로그
         log_frame = tk.LabelFrame(
             content,
-            text="📝 실행 로그",
+            text="실행 로그",
             font=("맑은 고딕", 11, "bold"),
             bg='#F0F0F0',
             padx=15,
             pady=15
         )
         log_frame.pack(fill='both', expand=True, pady=(0, 20))
-        
+
+        # 로그 내보내기 버튼
+        log_btn_frame = tk.Frame(log_frame, bg='#F0F0F0')
+        log_btn_frame.pack(fill='x', pady=(0, 5))
+
+        tk.Button(
+            log_btn_frame,
+            text="로그 저장",
+            font=("맑은 고딕", 8),
+            bg='#95a5a6',
+            fg='white',
+            padx=10,
+            pady=2,
+            cursor='hand2',
+            command=self.export_log
+        ).pack(side='right')
+
         log_scroll = tk.Scrollbar(log_frame)
         log_scroll.pack(side='right', fill='y')
-        
+
         self.log_text = tk.Text(
             log_frame,
             font=("Consolas", 9),
@@ -495,30 +511,52 @@ class ProjectRunner(tk.Frame):
         """에러 보고"""
         pass
     
+    def export_log(self):
+        """로그를 파일로 내보내기"""
+        from tkinter import filedialog
+        from datetime import datetime
+
+        log_content = self.log_text.get('1.0', 'end').strip()
+        if not log_content:
+            messagebox.showinfo("알림", "저장할 로그가 없습니다.")
+            return
+
+        default_name = f"macro_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        filepath = filedialog.asksaveasfilename(
+            parent=self.parent,
+            title="로그 저장",
+            initialfile=default_name,
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+        )
+
+        if filepath:
+            try:
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(log_content)
+                messagebox.showinfo("완료", f"로그가 저장되었습니다.\n{filepath}")
+            except (OSError, IOError) as e:
+                messagebox.showerror("오류", f"로그 저장 실패: {e}")
+
     def start_macro(self):
         """매크로 시작"""
         if self.is_running:
             return
-        
+
         # 유효성 검사
         if not self.flow_mgr.flow_sequence:
             messagebox.showerror("오류", "플로우가 비어있습니다.")
             return
-        
+
         settings = self.project_data.get('settings', {}).get('execution', {})
         if settings.get('mode') == 'excel_loop' and not self.excel_mgr.excel_sources:
             messagebox.showerror("오류", "엑셀 행 반복 모드는 엑셀 데이터가 필요합니다.")
             return
-        
-        # 버튼 상태 변경
-        self.start_btn.config(state='disabled')
-        self.pause_btn.config(state='normal')
-        self.stop_btn.config(state='normal')
-        
+
         self.is_running = True
-        self.add_log("="*50)
+        self.add_log("=" * 50)
         self.add_log("매크로 실행 준비 중...")
-        
+
         # 3초 카운트다운
         self.countdown(3)
     
@@ -545,10 +583,6 @@ class ProjectRunner(tk.Frame):
     def on_execution_finished(self):
         """실행 완료"""
         self.is_running = False
-        self.start_btn.config(state='normal')
-        self.pause_btn.config(state='disabled')
-        self.stop_btn.config(state='disabled')
-        
         messagebox.showinfo("완료", "매크로 실행이 완료되었습니다!")
     
     def pause_macro(self):
@@ -762,7 +796,7 @@ class ProjectRunner(tk.Frame):
                 if repeat_count < 1:
                     repeat_count = 1
                 self.project_data['settings']['execution']['repeat_count'] = repeat_count
-            except:
+            except (ValueError, TypeError):
                 self.project_data['settings']['execution']['repeat_count'] = 1
 
             # 실행 모드 결정
