@@ -2,12 +2,14 @@
 엑셀 소스 설정 다이얼로그
 """
 import tkinter as tk
+import customtkinter as ctk
 from tkinter import filedialog, messagebox
 from utils.ui_helpers import set_dialog_icon, center_window_on_parent
 from core.project_manager import ProjectManager
+from ui.theme import Colors, Fonts, Sizes
 
 
-class ExcelConfigDialog(tk.Toplevel):
+class ExcelConfigDialog(ctk.CTkToplevel):
     """엑셀 소스 자동 최신 파일 설정 다이얼로그"""
 
     def __init__(self, parent, excel_source, project_data, project_filepath):
@@ -18,139 +20,139 @@ class ExcelConfigDialog(tk.Toplevel):
         self.project_filepath = project_filepath
         self.modified = False
 
-        self.title("📊 엑셀 설정")
+        self.title("엑셀 설정")
         self.geometry("500x500")
         self.resizable(False, False)
 
         # 모달 설정
+        self.withdraw()
         self.transient(parent)
         self.grab_set()
         self.attributes('-topmost', True)
         set_dialog_icon(self)
 
         self.setup_ui()
-        center_window_on_parent(self, parent)
+
+        def _show():
+            center_window_on_parent(self, parent)
+            self.deiconify()
+            self.lift()
+            self.focus_force()
+        self.after(50, _show)
 
     def setup_ui(self):
         """UI 구성"""
         # 제목
-        title_frame = tk.Frame(self, bg='#2c3e50', height=60)
+        title_frame = ctk.CTkFrame(self, fg_color=Colors.BG_CARD, height=Sizes.HEADER_HEIGHT, corner_radius=0)
         title_frame.pack(fill='x')
         title_frame.pack_propagate(False)
 
-        tk.Label(
+        ctk.CTkLabel(
             title_frame,
-            text="📊 엑셀 자동 최신 파일 설정",
-            font=("맑은 고딕", 14, "bold"),
-            bg='#2c3e50',
-            fg='white'
-        ).pack(pady=15)
+            text="엑셀 자동 최신 파일 설정",
+            font=Fonts.HEADING,
+            text_color=Colors.TEXT_PRIMARY
+        ).pack(pady=Sizes.PAD_MD)
 
         # 메인 컨텐츠
-        content = tk.Frame(self, bg='#F0F0F0', padx=30, pady=20)
-        content.pack(fill='both', expand=True)
+        content = ctk.CTkFrame(self, fg_color="transparent")
+        content.pack(fill='both', expand=True, padx=Sizes.PAD_XL, pady=Sizes.PAD_LG)
 
         # 자동 최신 파일 선택 체크박스
         self.auto_latest_var = tk.BooleanVar(value=self.excel_source.get('auto_latest', False))
-        auto_check = tk.Checkbutton(
+        auto_check = ctk.CTkCheckBox(
             content,
             text="자동으로 최신 파일 선택",
-            font=("맑은 고딕", 11, "bold"),
-            bg='#F0F0F0',
+            font=Fonts.BODY_BOLD,
             variable=self.auto_latest_var,
             command=self.toggle_auto_mode
         )
-        auto_check.pack(anchor='w', pady=(0, 15))
+        auto_check.pack(anchor='w', pady=(0, Sizes.PAD_MD))
 
         # 자동 설정 프레임
-        self.auto_frame = tk.Frame(content, bg='#F0F0F0')
-        self.auto_frame.pack(fill='x', pady=(0, 20))
+        self.auto_frame = ctk.CTkFrame(content, fg_color="transparent")
+        self.auto_frame.pack(fill='x', pady=(0, Sizes.PAD_LG))
 
         # 디렉토리
-        tk.Label(
+        ctk.CTkLabel(
             self.auto_frame,
             text="검색 디렉토리:",
-            font=("맑은 고딕", 10),
-            bg='#F0F0F0'
-        ).grid(row=0, column=0, sticky='w', pady=5)
+            font=Fonts.SMALL
+        ).grid(row=0, column=0, sticky='w', pady=Sizes.PAD_XS)
 
-        dir_frame = tk.Frame(self.auto_frame, bg='#F0F0F0')
-        dir_frame.grid(row=0, column=1, sticky='ew', pady=5, padx=(10, 0))
+        dir_frame = ctk.CTkFrame(self.auto_frame, fg_color="transparent")
+        dir_frame.grid(row=0, column=1, sticky='ew', pady=Sizes.PAD_XS, padx=(Sizes.PAD_SM, 0))
 
         self.directory_var = tk.StringVar(value=self.excel_source.get('auto_directory', ''))
-        dir_entry = tk.Entry(
+        self.dir_entry = ctk.CTkEntry(
             dir_frame,
             textvariable=self.directory_var,
-            font=("맑은 고딕", 10),
-            relief='solid',
-            borderwidth=1
+            font=Fonts.SMALL
         )
-        dir_entry.pack(side='left', fill='x', expand=True)
+        self.dir_entry.pack(side='left', fill='x', expand=True)
 
-        tk.Button(
+        self.dir_browse_btn = ctk.CTkButton(
             dir_frame,
             text="찾기",
-            font=("맑은 고딕", 9),
-            bg='#3498db',
-            fg='white',
-            padx=10,
+            font=Fonts.CAPTION,
+            fg_color=Colors.PRIMARY,
+            hover_color=Colors.PRIMARY_HOVER,
+            text_color=Colors.TEXT_INVERSE,
+            width=60,
             command=self.browse_directory
-        ).pack(side='left', padx=(5, 0))
+        )
+        self.dir_browse_btn.pack(side='left', padx=(Sizes.PAD_XS, 0))
 
         # 파일명 prefix
-        tk.Label(
+        ctk.CTkLabel(
             self.auto_frame,
             text="파일명 prefix:",
-            font=("맑은 고딕", 10),
-            bg='#F0F0F0'
-        ).grid(row=1, column=0, sticky='w', pady=5)
+            font=Fonts.SMALL
+        ).grid(row=1, column=0, sticky='w', pady=Sizes.PAD_XS)
 
         self.prefix_var = tk.StringVar(value=self.excel_source.get('auto_prefix', 'list'))
-        prefix_entry = tk.Entry(
+        self.prefix_entry = ctk.CTkEntry(
             self.auto_frame,
             textvariable=self.prefix_var,
-            font=("맑은 고딕", 10),
-            width=20,
-            relief='solid',
-            borderwidth=1
+            font=Fonts.SMALL,
+            width=180
         )
-        prefix_entry.grid(row=1, column=1, sticky='w', pady=5, padx=(10, 0))
+        self.prefix_entry.grid(row=1, column=1, sticky='w', pady=Sizes.PAD_XS, padx=(Sizes.PAD_SM, 0))
 
-        tk.Label(
+        ctk.CTkLabel(
             self.auto_frame,
-            text="(예: list → list20250120.xlsx)",
-            font=("맑은 고딕", 8),
-            fg='#7f8c8d',
-            bg='#F0F0F0'
-        ).grid(row=2, column=1, sticky='w', padx=(10, 0))
+            text="(예: list -> list20250120.xlsx)",
+            font=Fonts.TINY,
+            text_color=Colors.TEXT_MUTED
+        ).grid(row=2, column=1, sticky='w', padx=(Sizes.PAD_SM, 0))
 
         self.auto_frame.grid_columnconfigure(1, weight=1)
 
         # 버튼
-        btn_frame = tk.Frame(content, bg='#F0F0F0')
-        btn_frame.pack(pady=(10, 0))
+        btn_frame = ctk.CTkFrame(content, fg_color="transparent")
+        btn_frame.pack(pady=(Sizes.PAD_SM, 0))
 
-        tk.Button(
+        ctk.CTkButton(
             btn_frame,
-            text="💾 저장",
-            font=("맑은 고딕", 11, "bold"),
-            bg='#27ae60',
-            fg='white',
-            padx=30,
-            pady=10,
+            text="저장",
+            font=Fonts.BODY_BOLD,
+            fg_color=Colors.SUCCESS,
+            hover_color=Colors.SUCCESS_HOVER,
+            text_color=Colors.TEXT_INVERSE,
+            width=120,
             command=self.save_config
-        ).pack(side='left', padx=5)
+        ).pack(side='left', padx=Sizes.PAD_XS)
 
-        tk.Button(
+        ctk.CTkButton(
             btn_frame,
             text="취소",
-            font=("맑은 고딕", 11),
-            bg='#95a5a6',
-            fg='white',
-            padx=30,
-            pady=10,
+            font=Fonts.BODY,
+            fg_color=Colors.BG_ELEVATED,
+            hover_color=Colors.GRAY_600,
+            text_color=Colors.TEXT_PRIMARY,
+            width=120,
             command=self.destroy
-        ).pack(side='left', padx=5)
+        ).pack(side='left', padx=Sizes.PAD_XS)
 
         # 초기 상태 설정
         self.toggle_auto_mode()
@@ -159,22 +161,14 @@ class ExcelConfigDialog(tk.Toplevel):
         """자동 모드 토글"""
         if self.auto_latest_var.get():
             # 자동 모드 활성화
-            for child in self.auto_frame.winfo_children():
-                if isinstance(child, (tk.Entry, tk.Button)):
-                    child.config(state='normal')
-                elif isinstance(child, tk.Frame):
-                    for subchild in child.winfo_children():
-                        if isinstance(subchild, (tk.Entry, tk.Button)):
-                            subchild.config(state='normal')
+            self.dir_entry.configure(state='normal')
+            self.dir_browse_btn.configure(state='normal')
+            self.prefix_entry.configure(state='normal')
         else:
             # 자동 모드 비활성화
-            for child in self.auto_frame.winfo_children():
-                if isinstance(child, (tk.Entry, tk.Button)):
-                    child.config(state='disabled')
-                elif isinstance(child, tk.Frame):
-                    for subchild in child.winfo_children():
-                        if isinstance(subchild, (tk.Entry, tk.Button)):
-                            subchild.config(state='disabled')
+            self.dir_entry.configure(state='disabled')
+            self.dir_browse_btn.configure(state='disabled')
+            self.prefix_entry.configure(state='disabled')
 
     def browse_directory(self):
         """디렉토리 선택"""

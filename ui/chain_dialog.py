@@ -2,17 +2,19 @@
 매크로 체인 설정 다이얼로그
 """
 import tkinter as tk
+import customtkinter as ctk
 from tkinter import messagebox
 from utils.ui_helpers import set_dialog_icon, center_window_on_parent
+from ui.theme import Colors, Fonts, Sizes, Styles
 
 
-class MacroChainDialog(tk.Toplevel):
+class MacroChainDialog(ctk.CTkToplevel):
     """매크로 체인 설정 다이얼로그"""
 
     def __init__(self, parent, project_manager):
         super().__init__(parent)
         self.title("매크로 체인 실행 설정")
-        self.geometry("500x600")
+        self.geometry("520x640")
         self.resizable(False, False)
 
         self.project_manager = project_manager
@@ -20,100 +22,95 @@ class MacroChainDialog(tk.Toplevel):
         self.chain_items = []  # [{'project_name': str, 'filepath': str, 'repeat_count': int}]
 
         # 모달 설정
+        self.withdraw()
         self.transient(parent)
         self.grab_set()
         self.attributes('-topmost', True)
         set_dialog_icon(self)
 
         self.setup_ui()
-        center_window_on_parent(self, parent)
 
-        # 포커스
-        self.lift()
-        self.focus_force()
+        def _show():
+            center_window_on_parent(self, parent)
+            self.deiconify()
+            self.lift()
+            self.focus_force()
+        self.after(50, _show)
 
     def setup_ui(self):
         """UI 구성"""
-        main_frame = tk.Frame(self, padx=20, pady=20)
+        main_frame = ctk.CTkFrame(self, fg_color=Colors.BG_SECONDARY)
         main_frame.pack(fill='both', expand=True)
 
-        # 제목
-        tk.Label(
-            main_frame,
-            text="🔗 매크로 체인 실행",
-            font=("맑은 고딕", 14, "bold")
-        ).pack(pady=(0, 10))
+        # ── 헤더 카드 ──
+        header_card = Styles.card(main_frame, corner_radius=0, border_width=0)
+        header_card.pack(fill='x')
 
-        tk.Label(
-            main_frame,
+        header_inner = ctk.CTkFrame(header_card, fg_color="transparent")
+        header_inner.pack(fill='x', padx=Sizes.PAD_XL, pady=Sizes.PAD_LG)
+
+        ctk.CTkLabel(
+            header_inner,
+            text="매크로 체인 실행",
+            font=Fonts.HEADING,
+            text_color=Colors.TEXT_PRIMARY,
+        ).pack(anchor='w')
+
+        ctk.CTkLabel(
+            header_inner,
             text="여러 매크로를 순차적으로 실행합니다.\n각 매크로의 반복 횟수를 설정할 수 있습니다.",
-            font=("맑은 고딕", 9),
-            fg='#7f8c8d',
-            justify='left'
-        ).pack(anchor='w', pady=(0, 15))
+            font=Fonts.CAPTION,
+            text_color=Colors.TEXT_MUTED,
+            justify='left',
+        ).pack(anchor='w', pady=(Sizes.PAD_XS, 0))
 
-        # 체인 리스트
-        list_frame = tk.LabelFrame(
-            main_frame,
-            text="체인 순서",
-            font=("맑은 고딕", 11, "bold"),
-            padx=10,
-            pady=10
-        )
-        list_frame.pack(fill='both', expand=True, pady=(0, 10))
+        # ── 체인 리스트 영역 ──
+        body = ctk.CTkFrame(main_frame, fg_color="transparent")
+        body.pack(fill='both', expand=True, padx=Sizes.PAD_LG, pady=Sizes.PAD_MD)
+
+        Styles.section_title(body, text="체인 순서").pack(anchor='w', pady=(0, Sizes.PAD_XS))
 
         # 스크롤 가능한 리스트
-        canvas = tk.Canvas(list_frame, bg='white', highlightthickness=1, highlightbackground='#bdc3c7')
-        scrollbar = tk.Scrollbar(list_frame, orient='vertical', command=canvas.yview)
-        self.chain_list_frame = tk.Frame(canvas, bg='white')
-
-        self.chain_list_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        self.chain_scroll_frame = ctk.CTkScrollableFrame(
+            body,
+            fg_color=Colors.BG_CARD,
+            corner_radius=Sizes.RADIUS_MD,
+            border_width=1,
+            border_color=Colors.BORDER,
         )
+        self.chain_scroll_frame.pack(fill='both', expand=True)
 
-        canvas.create_window((0, 0), window=self.chain_list_frame, anchor='nw')
-        canvas.configure(yscrollcommand=scrollbar.set)
+        # chain_list_frame은 scroll_frame 내부
+        self.chain_list_frame = self.chain_scroll_frame
 
-        canvas.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
+        # ── 하단 버튼 ──
+        btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        btn_frame.pack(fill='x', padx=Sizes.PAD_LG, pady=(0, Sizes.PAD_LG))
 
-        # 버튼들
-        btn_frame = tk.Frame(main_frame)
-        btn_frame.pack(fill='x', pady=(10, 0))
-
-        tk.Button(
+        Styles.primary_button(
             btn_frame,
             text="+ 매크로 추가",
-            font=("맑은 고딕", 10),
-            bg='#3498db',
-            fg='white',
-            padx=15,
-            pady=8,
-            command=self.add_macro_to_chain
-        ).pack(side='left', padx=5)
+            command=self.add_macro_to_chain,
+            height=Sizes.BTN_HEIGHT,
+        ).pack(side='left', padx=(0, Sizes.PAD_XS))
 
-        tk.Button(
-            btn_frame,
-            text="✅ 실행",
-            font=("맑은 고딕", 10),
-            bg='#27ae60',
-            fg='white',
-            padx=20,
-            pady=8,
-            command=self.on_execute
-        ).pack(side='right', padx=5)
-
-        tk.Button(
+        Styles.secondary_button(
             btn_frame,
             text="취소",
-            font=("맑은 고딕", 10),
-            bg='#95a5a6',
-            fg='white',
-            padx=20,
-            pady=8,
-            command=self.on_cancel
-        ).pack(side='right', padx=5)
+            command=self.on_cancel,
+        ).pack(side='right', padx=(Sizes.PAD_XS, 0))
+
+        ctk.CTkButton(
+            btn_frame,
+            text="실행",
+            font=Fonts.BODY_BOLD,
+            fg_color=Colors.SUCCESS,
+            hover_color=Colors.SUCCESS_HOVER,
+            text_color=Colors.TEXT_INVERSE,
+            height=Sizes.BTN_HEIGHT,
+            corner_radius=Sizes.RADIUS_SM,
+            command=self.on_execute,
+        ).pack(side='right', padx=(Sizes.PAD_XS, 0))
 
         self.refresh_chain_list()
 
@@ -127,9 +124,9 @@ class MacroChainDialog(tk.Toplevel):
             return
 
         # 프로젝트 선택 다이얼로그
-        dialog = tk.Toplevel(self)
+        dialog = ctk.CTkToplevel(self)
         dialog.title("매크로 선택 및 실행 설정")
-        dialog.geometry("520x600")
+        dialog.geometry("540x640")
         dialog.transient(self)
         dialog.grab_set()
         dialog.attributes('-topmost', True)
@@ -137,24 +134,47 @@ class MacroChainDialog(tk.Toplevel):
 
         result = [None]
 
-        tk.Label(
-            dialog,
+        dialog_main = ctk.CTkFrame(dialog, fg_color=Colors.BG_SECONDARY)
+        dialog_main.pack(fill='both', expand=True)
+
+        # ── 헤더 ──
+        dlg_header = Styles.card(dialog_main, corner_radius=0, border_width=0)
+        dlg_header.pack(fill='x')
+
+        ctk.CTkLabel(
+            dlg_header,
             text="실행할 매크로를 선택하세요",
-            font=("맑은 고딕", 12, "bold")
-        ).pack(pady=15)
+            font=Fonts.SUBHEADING,
+            text_color=Colors.TEXT_PRIMARY,
+        ).pack(padx=Sizes.PAD_XL, pady=Sizes.PAD_MD)
 
-        # 프로젝트 리스트박스
-        listbox_frame = tk.Frame(dialog)
-        listbox_frame.pack(fill='both', expand=True, padx=20, pady=10)
+        # ── 프로젝트 리스트 ──
+        body = ctk.CTkFrame(dialog_main, fg_color="transparent")
+        body.pack(fill='both', expand=True, padx=Sizes.PAD_LG, pady=Sizes.PAD_SM)
 
-        scrollbar = tk.Scrollbar(listbox_frame)
+        Styles.section_title(body, text="프로젝트 목록").pack(anchor='w', pady=(0, Sizes.PAD_XS))
+
+        listbox_card = Styles.card(body)
+        listbox_card.pack(fill='both', expand=True)
+
+        listbox_inner = ctk.CTkFrame(listbox_card, fg_color="transparent")
+        listbox_inner.pack(fill='both', expand=True, padx=2, pady=2)
+
+        scrollbar = tk.Scrollbar(listbox_inner)
         scrollbar.pack(side='right', fill='y')
 
         project_listbox = tk.Listbox(
-            listbox_frame,
-            font=("맑은 고딕", 10),
+            listbox_inner,
+            font=Fonts.BODY,
             yscrollcommand=scrollbar.set,
-            selectmode='single'
+            selectmode='single',
+            bg=Colors.BG_INPUT,
+            fg=Colors.TEXT_PRIMARY,
+            selectbackground=Colors.PRIMARY,
+            selectforeground=Colors.TEXT_INVERSE,
+            borderwidth=0,
+            highlightthickness=0,
+            relief='flat',
         )
         project_listbox.pack(side='left', fill='both', expand=True)
         scrollbar.config(command=project_listbox.yview)
@@ -163,51 +183,56 @@ class MacroChainDialog(tk.Toplevel):
         for proj in projects:
             proj_type = proj.get('type', 'project')
             if proj_type == 'chain':
-                display_name = f"🔗 [체인] {proj['name']}"
+                display_name = f"[체인] {proj['name']}"
             else:
-                display_name = f"⚙️ [매크로] {proj['name']}"
+                display_name = f"[매크로] {proj['name']}"
             project_listbox.insert(tk.END, display_name)
 
-        # 선택된 프로젝트의 실행 설정 표시 영역
-        settings_frame = tk.LabelFrame(
-            dialog,
-            text="🎯 실행 설정 (수정 가능)",
-            font=("맑은 고딕", 10, "bold"),
-            padx=20,
-            pady=15
+        # ── 실행 설정 영역 ──
+        settings_section = ctk.CTkFrame(dialog_main, fg_color="transparent")
+        settings_section.pack(fill='x', padx=Sizes.PAD_LG, pady=(Sizes.PAD_SM, 0))
+
+        Styles.section_title(settings_section, text="실행 설정 (수정 가능)").pack(
+            anchor='w', pady=(0, Sizes.PAD_XS)
         )
-        settings_frame.pack(fill='x', padx=20, pady=10)
+
+        settings_card = Styles.card(settings_section)
+        settings_card.pack(fill='x')
 
         # 설정 정보를 담을 변수들
         repeat_var = tk.StringVar(value='1')
         infinite_var = tk.BooleanVar(value=False)
 
         # 설정 UI 컨테이너
-        settings_container = tk.Frame(settings_frame, bg='white')
-        settings_container.pack(fill='x')
+        settings_container = ctk.CTkFrame(settings_card, fg_color="transparent")
+        settings_container.pack(fill='x', padx=Sizes.PAD_MD, pady=Sizes.PAD_MD)
 
         # 반복 횟수 입력
-        repeat_frame = tk.Frame(settings_container, bg='white')
-        repeat_frame.pack(fill='x', padx=10, pady=(10, 15))
+        repeat_frame = ctk.CTkFrame(settings_container, fg_color="transparent")
+        repeat_frame.pack(fill='x', pady=(0, Sizes.PAD_SM))
 
-        repeat_title_label = tk.Label(
+        repeat_title_label = ctk.CTkLabel(
             repeat_frame,
             text="반복 횟수:",
-            font=("맑은 고딕", 10, "bold"),
-            bg='white',
-            width=10,
-            anchor='w'
+            font=Fonts.SMALL_BOLD,
+            text_color=Colors.TEXT_SECONDARY,
+            width=80,
+            anchor='w',
         )
         repeat_title_label.pack(side='left')
 
-        repeat_entry = tk.Entry(repeat_frame, textvariable=repeat_var, font=("맑은 고딕", 10), width=10)
-        repeat_entry.pack(side='left', padx=10)
+        repeat_entry = Styles.input_field(
+            repeat_frame,
+            textvariable=repeat_var,
+            width=100,
+        )
+        repeat_entry.pack(side='left', padx=Sizes.PAD_SM)
 
-        repeat_label = tk.Label(
+        repeat_label = ctk.CTkLabel(
             repeat_frame,
             text="회",
-            font=("맑은 고딕", 10),
-            bg='white'
+            font=Fonts.SMALL,
+            text_color=Colors.TEXT_SECONDARY,
         )
         repeat_label.pack(side='left')
 
@@ -215,40 +240,37 @@ class MacroChainDialog(tk.Toplevel):
         def toggle_repeat_entry():
             """무한 반복 체크 시 반복 횟수 입력 비활성화"""
             if infinite_var.get():
-                repeat_title_label.config(fg='#95a5a6')
-                repeat_entry.config(state='disabled', bg='#d3d3d3')
-                repeat_label.config(fg='#95a5a6')
+                repeat_title_label.configure(text_color=Colors.TEXT_MUTED)
+                repeat_entry.configure(state='disabled')
+                repeat_label.configure(text_color=Colors.TEXT_MUTED)
             else:
-                repeat_title_label.config(fg='black')
-                repeat_entry.config(state='normal', bg='white')
-                repeat_label.config(fg='black')
+                repeat_title_label.configure(text_color=Colors.TEXT_PRIMARY)
+                repeat_entry.configure(state='normal')
+                repeat_label.configure(text_color=Colors.TEXT_PRIMARY)
 
-        infinite_check = tk.Checkbutton(
+        infinite_check = ctk.CTkCheckBox(
             settings_container,
-            text="🔄 무한 반복",
+            text="무한 반복",
             variable=infinite_var,
-            font=("맑은 고딕", 10, "bold"),
-            fg='#e74c3c',
-            bg='white',
-            command=toggle_repeat_entry
+            font=Fonts.SMALL_BOLD,
+            text_color=Colors.DANGER,
+            command=toggle_repeat_entry,
         )
-        infinite_check.pack(anchor='w', padx=10, pady=(5, 10))
+        infinite_check.pack(anchor='w', pady=(0, Sizes.PAD_SM))
 
-        tk.Label(
+        ctk.CTkLabel(
             settings_container,
             text="※ 엑셀 데이터가 있으면 자동으로 엑셀 행별 반복이 적용됩니다",
-            font=("맑은 고딕", 9),
-            fg='#7f8c8d',
-            bg='white'
-        ).pack(anchor='w', padx=10, pady=(5, 0))
+            font=Fonts.CAPTION,
+            text_color=Colors.TEXT_MUTED,
+        ).pack(anchor='w', pady=(Sizes.PAD_XS, 0))
 
-        tk.Label(
+        ctk.CTkLabel(
             settings_container,
             text="※ 수정하면 프로젝트 파일에 저장됩니다",
-            font=("맑은 고딕", 8),
-            fg='#7f8c8d',
-            bg='white'
-        ).pack(anchor='w', padx=10, pady=(2, 0))
+            font=Fonts.TINY,
+            text_color=Colors.TEXT_MUTED,
+        ).pack(anchor='w', pady=(2, 0))
 
         # 프로젝트 선택 시 설정 로드
         def on_project_select(event):
@@ -356,30 +378,27 @@ class MacroChainDialog(tk.Toplevel):
             except Exception as e:
                 messagebox.showerror("오류", f"설정 저장 실패: {e}", parent=dialog)
 
-        btn_frame = tk.Frame(dialog)
-        btn_frame.pack(pady=15)
+        # ── 하단 버튼 ──
+        btn_frame = ctk.CTkFrame(dialog_main, fg_color="transparent")
+        btn_frame.pack(fill='x', padx=Sizes.PAD_LG, pady=Sizes.PAD_MD)
 
-        tk.Button(
+        ctk.CTkButton(
             btn_frame,
             text="추가",
-            font=("맑은 고딕", 10),
-            bg='#27ae60',
-            fg='white',
-            padx=20,
-            pady=8,
-            command=on_ok
-        ).pack(side='left', padx=5)
+            font=Fonts.BODY_BOLD,
+            fg_color=Colors.SUCCESS,
+            hover_color=Colors.SUCCESS_HOVER,
+            text_color=Colors.TEXT_INVERSE,
+            height=Sizes.BTN_HEIGHT,
+            corner_radius=Sizes.RADIUS_SM,
+            command=on_ok,
+        ).pack(side='right', padx=(Sizes.PAD_XS, 0))
 
-        tk.Button(
+        Styles.secondary_button(
             btn_frame,
             text="취소",
-            font=("맑은 고딕", 10),
-            bg='#95a5a6',
-            fg='white',
-            padx=20,
-            pady=8,
-            command=dialog.destroy
-        ).pack(side='left', padx=5)
+            command=dialog.destroy,
+        ).pack(side='right', padx=(Sizes.PAD_XS, 0))
 
         center_window_on_parent(dialog, self)
         dialog.lift()
@@ -398,12 +417,11 @@ class MacroChainDialog(tk.Toplevel):
             widget.destroy()
 
         if not self.chain_items:
-            tk.Label(
+            ctk.CTkLabel(
                 self.chain_list_frame,
                 text="매크로를 추가하세요",
-                font=("맑은 고딕", 10),
-                fg='#95a5a6',
-                bg='white'
+                font=Fonts.SMALL,
+                text_color=Colors.TEXT_MUTED,
             ).pack(pady=50)
             return
 
@@ -448,77 +466,80 @@ class MacroChainDialog(tk.Toplevel):
 
     def create_chain_item_widget(self, idx, item):
         """체인 아이템 위젯 생성"""
-        item_frame = tk.Frame(self.chain_list_frame, bg='white', relief='solid', borderwidth=1)
-        item_frame.pack(fill='x', padx=5, pady=5)
+        item_frame = ctk.CTkFrame(
+            self.chain_list_frame,
+            fg_color=Colors.BG_INPUT,
+            corner_radius=Sizes.RADIUS_SM,
+            border_width=1,
+            border_color=Colors.BORDER,
+        )
+        item_frame.pack(fill='x', padx=Sizes.PAD_XS, pady=Sizes.PAD_XS)
 
-        # 순서 번호
-        tk.Label(
+        # 순서 번호 배지
+        badge = ctk.CTkLabel(
             item_frame,
-            text=f"{idx + 1}.",
-            font=("맑은 고딕", 11, "bold"),
-            bg='white',
-            fg='#3498db',
-            width=3
-        ).pack(side='left', padx=(10, 5))
+            text=f" {idx + 1} ",
+            font=Fonts.CAPTION_BOLD,
+            text_color=Colors.TEXT_INVERSE,
+            fg_color=Colors.PRIMARY,
+            corner_radius=Sizes.RADIUS_SM,
+            width=28,
+            height=28,
+        )
+        badge.pack(side='left', padx=(Sizes.PAD_SM, Sizes.PAD_XS), pady=Sizes.PAD_SM)
 
         # 정보
-        info_frame = tk.Frame(item_frame, bg='white')
-        info_frame.pack(side='left', fill='x', expand=True, padx=10, pady=10)
+        info_frame = ctk.CTkFrame(item_frame, fg_color="transparent")
+        info_frame.pack(side='left', fill='x', expand=True, padx=Sizes.PAD_SM, pady=Sizes.PAD_SM)
 
-        tk.Label(
+        ctk.CTkLabel(
             info_frame,
             text=item['project_name'],
-            font=("맑은 고딕", 10, "bold"),
-            bg='white',
-            anchor='w'
+            font=Fonts.SMALL_BOLD,
+            text_color=Colors.TEXT_PRIMARY,
+            anchor='w',
         ).pack(anchor='w')
 
         # 실행 설정 표시 (실제 프로젝트 설정 읽기)
         mode_text = self.get_execution_mode_text(item)
 
-        tk.Label(
+        ctk.CTkLabel(
             info_frame,
             text=mode_text,
-            font=("맑은 고딕", 9),
-            bg='white',
-            fg='#2980b9',
-            anchor='w'
+            font=Fonts.CAPTION,
+            text_color=Colors.PRIMARY_LIGHT,
+            anchor='w',
         ).pack(anchor='w')
 
         # 버튼들
-        btn_frame = tk.Frame(item_frame, bg='white')
-        btn_frame.pack(side='right', padx=10)
+        btn_frame = ctk.CTkFrame(item_frame, fg_color="transparent")
+        btn_frame.pack(side='right', padx=Sizes.PAD_SM)
 
         # 위로 이동
         if idx > 0:
-            tk.Button(
+            Styles.ghost_button(
                 btn_frame,
                 text="▲",
-                font=("맑은 고딕", 8),
-                width=3,
-                command=lambda: self.move_item_up(idx)
-            ).pack(side='left', padx=2)
+                command=lambda: self.move_item_up(idx),
+            ).configure(width=30, height=Sizes.BTN_HEIGHT_XS, font=Fonts.TINY)
+            btn_frame.winfo_children()[-1].pack(side='left', padx=2)
 
         # 아래로 이동
         if idx < len(self.chain_items) - 1:
-            tk.Button(
+            Styles.ghost_button(
                 btn_frame,
                 text="▼",
-                font=("맑은 고딕", 8),
-                width=3,
-                command=lambda: self.move_item_down(idx)
-            ).pack(side='left', padx=2)
+                command=lambda: self.move_item_down(idx),
+            ).configure(width=30, height=Sizes.BTN_HEIGHT_XS, font=Fonts.TINY)
+            btn_frame.winfo_children()[-1].pack(side='left', padx=2)
 
         # 삭제
-        tk.Button(
+        Styles.danger_button(
             btn_frame,
-            text="✕",
-            font=("맑은 고딕", 8),
-            bg='#e74c3c',
-            fg='white',
-            width=3,
-            command=lambda: self.remove_item(idx)
-        ).pack(side='left', padx=2)
+            text="X",
+            command=lambda: self.remove_item(idx),
+        ).configure(width=30, height=Sizes.BTN_HEIGHT_XS, font=Fonts.TINY)
+        btn_frame.winfo_children()[-1].pack(side='left', padx=2)
 
     def move_item_up(self, idx):
         """아이템 위로 이동"""
@@ -542,7 +563,7 @@ class MacroChainDialog(tk.Toplevel):
         if not self.chain_items:
             messagebox.showwarning("경고", "실행할 매크로를 추가하세요.", parent=self)
             return
-            
+
         self.save_chain()
         self.result = self.chain_items
         self.destroy()

@@ -1,18 +1,19 @@
 """
 매크로 체인 실행 화면
 """
-import tkinter as tk
-from tkinter import scrolledtext, ttk, messagebox
+import customtkinter as ctk
+from tkinter import messagebox
 import threading
 from pynput import keyboard
 from core.chain_executor import ChainExecutor
+from ui.theme import Colors, Fonts, Sizes, Styles
 
 
-class ChainRunner(tk.Frame):
+class ChainRunner(ctk.CTkFrame):
     """매크로 체인 실행 화면"""
 
     def __init__(self, parent, app, chain_items, autostart=False):
-        super().__init__(parent)
+        super().__init__(parent, fg_color=Colors.BG_PRIMARY)
         self.app = app
         self.parent = parent
         self.chain_items = chain_items  # [{'project_name': str, 'filepath': str, 'repeat_count': int}]
@@ -88,51 +89,41 @@ class ChainRunner(tk.Frame):
 
     def setup_ui(self):
         """UI 구성"""
-        # 상단 헤더
-        header = tk.Frame(self, bg='#2c3e50', height=60)
+        # ── 상단 헤더 ──
+        header = Styles.card(self, corner_radius=0, border_width=0, height=Sizes.HEADER_HEIGHT)
         header.pack(fill='x')
         header.pack_propagate(False)
 
-        tk.Label(
+        ctk.CTkLabel(
             header,
-            text="🔗 매크로 체인 실행",
-            font=("맑은 고딕", 14, "bold"),
-            bg='#2c3e50',
-            fg='white'
-        ).pack(side='left', padx=20, pady=15)
+            text="매크로 체인 실행",
+            font=Fonts.HEADING,
+            text_color=Colors.TEXT_PRIMARY,
+        ).pack(side='left', padx=Sizes.PAD_XL, pady=Sizes.PAD_MD)
 
-        # 우측 버튼 프레임
-        btn_frame = tk.Frame(header, bg='#2c3e50')
-        btn_frame.pack(side='right', padx=20)
-
-        # 뒤로가기 버튼만 유지
-        tk.Button(
-            btn_frame,
+        # 뒤로가기 버튼 (ghost)
+        Styles.ghost_button(
+            header,
             text="← 뒤로",
-            font=("맑은 고딕", 10),
-            bg='#34495e',
-            fg='white',
-            padx=15,
-            pady=8,
-            command=self.go_back
-        ).pack(side='right', padx=5)
+            command=self.go_back,
+        ).pack(side='right', padx=Sizes.PAD_LG, pady=Sizes.PAD_MD)
 
-        # 메인 컨텐츠
-        main_frame = tk.Frame(self, bg='#ecf0f1')
-        main_frame.pack(fill='both', expand=True)
+        # ── 메인 컨텐츠 ──
+        main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
+        main_frame.pack(fill='both', expand=True, padx=Sizes.PAD_LG, pady=Sizes.PAD_MD)
 
-        # 상측: 체인 정보
-        top_frame = tk.Frame(main_frame, bg='white',height=300)
-        top_frame.pack(side='top', fill='x', padx=(20), pady=(20,10))
-        top_frame.pack_propagate(False)
+        # ── 상측: 체인 정보 카드 ──
+        top_card = Styles.card(main_frame, height=300)
+        top_card.pack(fill='x', pady=(0, Sizes.PAD_SM))
+        top_card.pack_propagate(False)
 
-        self.setup_chain_info(top_frame)
+        self.setup_chain_info(top_card)
 
-        # 하측: 로그 및 제어
-        bottom_frame = tk.Frame(main_frame, bg='white')
-        bottom_frame.pack(side='bottom', fill='both', expand=True, padx=(20), pady=(10,20))
+        # ── 하측: 로그 카드 ──
+        bottom_card = Styles.card(main_frame)
+        bottom_card.pack(fill='both', expand=True, pady=(Sizes.PAD_SM, 0))
 
-        self.setup_log_and_controls(bottom_frame)
+        self.setup_log_and_controls(bottom_card)
 
         # 자동시작인 경우 바로 실행
         if self.autostart:
@@ -175,15 +166,20 @@ class ChainRunner(tk.Frame):
 
     def setup_chain_info(self, parent):
         """체인 정보 패널"""
-        hotkey_frame = tk.LabelFrame(
-            parent,
-            text="단축키",
-            font=("맑은 고딕", 11, "bold"),
-            bg='white',          # top_frame 이 흰색이므로 맞춤
-            padx=10,
-            pady=10
+        # ── 단축키 카드 ──
+        hotkey_container = ctk.CTkFrame(parent, fg_color="transparent")
+        hotkey_container.pack(fill='x', padx=Sizes.PAD_LG, pady=(Sizes.PAD_MD, Sizes.PAD_XS))
+
+        Styles.section_title(hotkey_container, text="단축키").pack(anchor='w', pady=(0, Sizes.PAD_XS))
+
+        hotkey_card = ctk.CTkFrame(
+            hotkey_container,
+            fg_color=Colors.BG_INPUT,
+            corner_radius=Sizes.RADIUS_SM,
+            border_width=1,
+            border_color=Colors.BORDER,
         )
-        hotkey_frame.pack(fill='x', padx=30, pady=(15, 5))   # ★ 실행 순서 위, 위쪽 여백만 크게
+        hotkey_card.pack(fill='x')
 
         from core.settings_manager import SettingsManager
         hotkeys = SettingsManager.get_hotkeys()
@@ -194,135 +190,100 @@ class ChainRunner(tk.Frame):
             f"맨 앞으로: {hotkeys.get('focus', 'F12').upper()}"
         )
 
-        tk.Label(
-            hotkey_frame,
+        ctk.CTkLabel(
+            hotkey_card,
             text=hotkey_text,
-            font=("맑은 고딕", 9),
-            bg='white',
-            fg='#2c3e50'
-        ).pack()
+            font=Fonts.MONO_SMALL,
+            text_color=Colors.TEXT_SECONDARY,
+        ).pack(padx=Sizes.PAD_MD, pady=Sizes.PAD_SM)
 
-        tk.Label(
-            parent,
-            text="📋 실행 순서",
-            font=("맑은 고딕", 12, "bold"),
-            bg='white'
-        ).pack(anchor='w', padx=15, pady=(15, 10))
-
-        # 스크롤 가능한 리스트
-        canvas = tk.Canvas(parent, bg='white', highlightthickness=0)
-        scrollbar = tk.Scrollbar(parent, orient='vertical', command=canvas.yview)
-        list_frame = tk.Frame(canvas, bg='white')
-
-        list_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        # ── 실행 순서 ──
+        Styles.section_title(parent, text="실행 순서").pack(
+            anchor='w', padx=Sizes.PAD_LG, pady=(Sizes.PAD_MD, Sizes.PAD_XS)
         )
 
-        canvas.create_window((0, 0), window=list_frame, anchor='nw')
-        canvas.configure(yscrollcommand=scrollbar.set)
+        # 스크롤 가능한 리스트
+        list_frame = ctk.CTkScrollableFrame(parent, fg_color="transparent", corner_radius=0)
+        list_frame.pack(fill='both', expand=True, padx=Sizes.PAD_MD)
 
-        canvas.pack(side='left', fill='both', expand=True, padx=15)
-        scrollbar.pack(side='right', fill='y')
-
-        # 체인 항목 표시
+        # 체인 항목 표시 (grid layout)
         for idx, item in enumerate(self.chain_items):
-            row = idx // 2  # 0, 0, 1, 1, 2, 2...
-            col = idx % 2   # 0, 1, 0, 1, 0, 1...
-            item_frame = tk.Frame(list_frame, bg='#ecf0f1', relief='solid', borderwidth=1)
-            item_frame.grid(row=row, column=col, padx=8, pady=5, sticky='nsew')
+            row = idx // 2
+            col = idx % 2
 
-            tk.Label(
+            item_frame = ctk.CTkFrame(
+                list_frame,
+                fg_color=Colors.BG_INPUT,
+                corner_radius=Sizes.RADIUS_SM,
+                border_width=1,
+                border_color=Colors.BORDER,
+            )
+            item_frame.grid(row=row, column=col, padx=Sizes.PAD_XS, pady=Sizes.PAD_XS, sticky='nsew')
+
+            # 번호 배지
+            badge = ctk.CTkLabel(
                 item_frame,
-                text=f"{idx + 1}.",
-                font=("맑은 고딕", 10, "bold"),
-                bg='#ecf0f1',
-                fg='#3498db',
-                width=3
-            ).pack(side='left', padx=10, pady=10)
+                text=f" {idx + 1} ",
+                font=Fonts.CAPTION_BOLD,
+                text_color=Colors.TEXT_INVERSE,
+                fg_color=Colors.PRIMARY,
+                corner_radius=Sizes.RADIUS_SM,
+                width=26,
+                height=26,
+            )
+            badge.pack(side='left', padx=Sizes.PAD_SM, pady=Sizes.PAD_SM)
 
-            info = tk.Frame(item_frame, bg='#ecf0f1')
-            info.pack(side='left', fill='x', expand=True, padx=10, pady=10)
+            info = ctk.CTkFrame(item_frame, fg_color="transparent")
+            info.pack(side='left', fill='x', expand=True, padx=Sizes.PAD_SM, pady=Sizes.PAD_SM)
 
-            tk.Label(
+            ctk.CTkLabel(
                 info,
                 text=item['project_name'],
-                font=("맑은 고딕", 10, "bold"),
-                bg='#ecf0f1',
-                anchor='w'
+                font=Fonts.SMALL_BOLD,
+                text_color=Colors.TEXT_PRIMARY,
+                anchor='w',
             ).pack(anchor='w')
 
             # 실행 설정 표시 (실제 프로젝트 설정 읽기)
             mode_text = self.get_execution_mode_text(item)
 
-            tk.Label(
+            ctk.CTkLabel(
                 info,
                 text=mode_text,
-                font=("맑은 고딕", 9),
-                bg='#ecf0f1',
-                fg='#2980b9',
-                anchor='w'
+                font=Fonts.CAPTION,
+                text_color=Colors.PRIMARY_LIGHT,
+                anchor='w',
             ).pack(anchor='w')
 
         for col in range(2):
-            list_frame.grid_columnconfigure(col, weight=1,minsize=230, uniform="chain")
+            list_frame.grid_columnconfigure(col, weight=1, minsize=230, uniform="chain")
 
     def setup_log_and_controls(self, parent):
         """로그 및 제어 패널"""
-        # # 진행 상황
-        # progress_frame = tk.Frame(parent, bg='white')
-        # progress_frame.pack(fill='x', padx=15, pady=(15, 10))
+        log_container = ctk.CTkFrame(parent, fg_color="transparent")
+        log_container.pack(fill='both', expand=True, padx=Sizes.PAD_MD, pady=Sizes.PAD_MD)
 
-        # tk.Label(
-        #     progress_frame,
-        #     text="진행 상황",
-        #     font=("맑은 고딕", 11, "bold"),
-        #     bg='white'
-        # ).pack(anchor='w', pady=(0, 5))
+        Styles.section_title(log_container, text="실행 로그").pack(anchor='w', pady=(0, Sizes.PAD_XS))
 
-        # self.progress_bar = ttk.Progressbar(
-        #     progress_frame,
-        #     mode='determinate',
-        #     length=400
-        # )
-        # self.progress_bar.pack(fill='x', pady=(0, 5))
-
-        # self.progress_label = tk.Label(
-        #     progress_frame,
-        #     text="대기 중...",
-        #     font=("맑은 고딕", 9),
-        #     bg='white',
-        #     fg='#7f8c8d'
-        # )
-        # self.progress_label.pack(anchor='w')
-
-        # 로그
-        log_frame = tk.LabelFrame(
-            parent,
-            text="실행 로그",
-            font=("맑은 고딕", 11, "bold"),
-            bg='white',
-            padx=10,
-            pady=10
-        )
-        log_frame.pack(fill='both', expand=True, padx=15, pady=(10, 15))
-
-        self.log_text = scrolledtext.ScrolledText(
-            log_frame,
-            font=("맑은 고딕", 9),
-            bg='#2c3e50',
-            fg='#ecf0f1',
+        self.log_text = ctk.CTkTextbox(
+            log_container,
+            font=Fonts.MONO_SMALL,
+            fg_color=Colors.BG_INPUT,
+            text_color=Colors.TEXT_PRIMARY,
             wrap='word',
-            state='disabled'
+            corner_radius=Sizes.RADIUS_SM,
+            border_width=1,
+            border_color=Colors.BORDER,
+            state='disabled',
         )
         self.log_text.pack(fill='both', expand=True)
 
     def add_log(self, message):
         """로그 추가"""
-        self.log_text.config(state='normal')
+        self.log_text.configure(state='normal')
         self.log_text.insert('end', message + '\n')
         self.log_text.see('end')
-        self.log_text.config(state='disabled')
+        self.log_text.configure(state='disabled')
 
     # def update_progress(self, current, total, status=""):
     #     """진행 상황 업데이트"""
@@ -335,7 +296,7 @@ class ChainRunner(tk.Frame):
 
     def report_error(self, error_msg):
         """에러 보고"""
-        self.add_log(f"❌ 에러: {error_msg}")
+        self.add_log(f"[ERR] 에러: {error_msg}")
 
     def start_chain(self):
         """체인 실행 시작"""
@@ -355,10 +316,10 @@ class ChainRunner(tk.Frame):
 
         if self.executor.is_paused:
             self.executor.resume()
-            self.add_log("▶️ 재개")
+            self.add_log("[PLAY] 재개")
         else:
             self.executor.pause()
-            self.add_log("⏸️ 일시정지")
+            self.add_log("[PAUSE] 일시정지")
 
     def stop_chain(self):
         """중지"""
@@ -367,7 +328,7 @@ class ChainRunner(tk.Frame):
 
         self.executor.stop()
         self.is_running = False
-        self.add_log("⏹️ 중지")
+        self.add_log("[STOP] 중지")
 
     def bring_to_front(self):
         """프로그램 창을 맨 앞으로 가져오기"""

@@ -1,13 +1,15 @@
 """
 화면 메크로 빌더 - 메인 실행 파일
 """
-import tkinter as tk
+
+import customtkinter as ctk
 from tkinter import messagebox
 import sys
 import os
 
 # 프로젝트 내부 모듈
 from core.config import config
+from ui.theme import Colors, Fonts, Sizes
 from ui.start_screen import StartScreen
 
 
@@ -19,17 +21,18 @@ class MacroBuilderApp:
         config.initialize()
 
         # 메인 윈도우 설정
-        self.root = tk.Tk()
-        self.root.title(f"dMax MacroBuilder v{config.VERSION}")
-        self.root.geometry("550x670")
-        self.root.minsize(550, 670)
+        self.root = ctk.CTk()
+        self.root.title(f"MacroBuilder v{config.VERSION}")
+        self.root.geometry(f"{Sizes.WINDOW_WIDTH}x{Sizes.WINDOW_HEIGHT}")
+        self.root.minsize(480, 560)
+        self.root.configure(fg_color=Colors.BG_PRIMARY)
 
         # 윈도우 아이콘 설정
         self.set_window_icon()
 
         # 이벤트 바인딩
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        self.root.bind('<F12>', lambda e: self.bring_to_front())
+        self.root.bind("<F12>", lambda e: self.bring_to_front())
 
         # 최초 실행 플래그
         self.is_initial_launch = True
@@ -48,7 +51,7 @@ class MacroBuilderApp:
                 print("[WARNING] 아이콘 파일 없음")
         except Exception as e:
             print(f"[WARNING] 아이콘 설정 실패: {e}")
-        
+
     def show_start_screen(self):
         """시작 화면 표시"""
         # 기존 위젯 제거
@@ -65,8 +68,8 @@ class MacroBuilderApp:
         # 자동시작이 실행되지 않은 경우에만 StartScreen 표시
         if not autostart_executed:
             start_screen = StartScreen(self.root, self)
-            start_screen.pack(fill='both', expand=True)
-    
+            start_screen.pack(fill="both", expand=True)
+
     def check_autostart(self):
         """자동시작 프로젝트/체인 확인 및 실행
 
@@ -78,10 +81,10 @@ class MacroBuilderApp:
 
         try:
             # settings.json 읽기
-            with open('settings.json', 'r', encoding='utf-8') as f:
+            with open("settings.json", "r", encoding="utf-8") as f:
                 settings = json.load(f)
 
-            autostart_path = settings.get('autostart')
+            autostart_path = settings.get("autostart")
 
             # 자동시작 설정이 비어있거나 None인 경우
             if not autostart_path:
@@ -92,14 +95,17 @@ class MacroBuilderApp:
                 print(f"[WARNING] 자동시작 파일이 존재하지 않습니다: {autostart_path}")
 
                 # 사용자에게 알림 (after를 사용하여 UI 생성 후 표시)
-                self.root.after(100, lambda: messagebox.showwarning(
-                    "자동시작 실패",
-                    "자동시작으로 설정된 프로젝트/체인을 찾을 수 없습니다.\n자동시작 설정이 해제되었습니다."
-                ))
+                self.root.after(
+                    100,
+                    lambda: messagebox.showwarning(
+                        "자동시작 실패",
+                        "자동시작으로 설정된 프로젝트/체인을 찾을 수 없습니다.\n자동시작 설정이 해제되었습니다.",
+                    ),
+                )
 
                 # settings.json의 autostart 값 비우기
-                settings['autostart'] = None
-                with open('settings.json', 'w', encoding='utf-8') as f:
+                settings["autostart"] = None
+                with open("settings.json", "w", encoding="utf-8") as f:
                     json.dump(settings, f, ensure_ascii=False, indent=2)
                 return False
 
@@ -114,33 +120,38 @@ class MacroBuilderApp:
                 print(f"[WARNING] 자동시작 파일 로드 실패: {autostart_path}")
 
                 # 사용자에게 알림 (after를 사용하여 UI 생성 후 표시)
-                self.root.after(100, lambda: messagebox.showerror(
-                    "자동시작 실패",
-                    "자동시작 파일을 불러올 수 없습니다.\n자동시작 설정이 해제되었습니다."
-                ))
+                self.root.after(
+                    100,
+                    lambda: messagebox.showerror(
+                        "자동시작 실패",
+                        "자동시작 파일을 불러올 수 없습니다.\n자동시작 설정이 해제되었습니다.",
+                    ),
+                )
 
                 # settings.json의 autostart 값 비우기
-                settings['autostart'] = None
-                with open('settings.json', 'w', encoding='utf-8') as f:
+                settings["autostart"] = None
+                with open("settings.json", "w", encoding="utf-8") as f:
                     json.dump(settings, f, ensure_ascii=False, indent=2)
                 return False
 
             # 타입 확인 (프로젝트 또는 체인)
-            item_type = project_data.get('type', 'project')
+            item_type = project_data.get("type", "project")
 
-            if item_type == 'chain':
+            if item_type == "chain":
                 # 체인 실행
                 from ui.chain_runner import ChainRunner
 
-                chain_items = project_data.get('chain_items', [])
+                chain_items = project_data.get("chain_items", [])
                 runner = ChainRunner(self.root, self, chain_items, autostart=True)
-                runner.pack(fill='both', expand=True)
+                runner.pack(fill="both", expand=True)
             else:
                 # 프로젝트 실행
                 from ui.project_runner import ProjectRunner
 
-                runner = ProjectRunner(self.root, self, project_data, autostart_path, autostart=True)
-                runner.pack(fill='both', expand=True)
+                runner = ProjectRunner(
+                    self.root, self, project_data, autostart_path, autostart=True
+                )
+                runner.pack(fill="both", expand=True)
 
             return True  # 자동시작 실행됨
 
@@ -152,27 +163,27 @@ class MacroBuilderApp:
         """프로그램 창을 맨 앞으로 가져오기"""
         try:
             # 최소화 상태면 복원
-            if self.root.state() == 'iconic':
-                self.root.state('normal')
+            if self.root.state() == "iconic":
+                self.root.state("normal")
 
             # 맨 앞으로 가져오기
             self.root.lift()
             self.root.focus_force()
 
             # 잠깐 topmost 설정 후 해제 (확실하게 앞으로)
-            self.root.attributes('-topmost', True)
-            self.root.after(100, lambda: self.root.attributes('-topmost', False))
+            self.root.attributes("-topmost", True)
+            self.root.after(100, lambda: self.root.attributes("-topmost", False))
 
             print("[INFO] 프로그램이 맨 앞으로 이동했습니다")
         except Exception as e:
             print(f"[WARNING] 맨 앞으로 가져오기 오류: {e}")
-    
+
     def on_closing(self):
         """프로그램 종료 확인"""
         if messagebox.askokcancel("종료", "프로그램을 종료하시겠습니까?"):
             self.root.destroy()
             sys.exit(0)
-    
+
     def run(self):
         """프로그램 실행"""
         self.root.mainloop()

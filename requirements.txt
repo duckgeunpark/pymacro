@@ -21,5 +21,8 @@ pytesseract==0.3.10
 # screen capture
 mss==9.0.1
 
+# UI framework
+customtkinter==5.2.2
+
 # build tools
 pyinstaller==6.3.0

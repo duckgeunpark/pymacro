@@ -55,7 +55,7 @@ class ChainExecutor:
 
     def report_error(self, error_msg):
         """에러 보고"""
-        self.log(f"❌ 에러: {error_msg}")
+        self.log(f"[ERR] 에러: {error_msg}")
         if self.error_callback:
             self.error_callback(error_msg)
 
@@ -74,13 +74,13 @@ class ChainExecutor:
 
         current_execution = 0
 
-        self.log("🔗 ===== 매크로 체인 실행 시작 =====")
+        self.log("===== 매크로 체인 실행 시작 =====")
         self.log(f"총 {len(self.chain_items)}개의 매크로 실행 예정")
 
         try:
             for chain_idx, item in enumerate(self.chain_items):
                 if self.should_stop:
-                    self.log("⏹️ 사용자가 중지했습니다.")
+                    self.log("[STOP] 사용자가 중지했습니다.")
                     break
 
                 self.current_chain_index = chain_idx
@@ -91,9 +91,9 @@ class ChainExecutor:
 
                 # 로그 메시지 생성
                 if execution_mode == 'use_project_settings':
-                    self.log(f"\n📌 [{chain_idx + 1}/{len(self.chain_items)}] '{project_name}' 실행 (프로젝트 설정 사용)")
+                    self.log(f"\n[{chain_idx + 1}/{len(self.chain_items)}] '{project_name}' 실행 (프로젝트 설정 사용)")
                 else:
-                    self.log(f"\n📌 [{chain_idx + 1}/{len(self.chain_items)}] '{project_name}' 실행 (총 {repeat_count}회)")
+                    self.log(f"\n[{chain_idx + 1}/{len(self.chain_items)}] '{project_name}' 실행 (총 {repeat_count}회)")
 
                 # 프로젝트 로드
                 try:
@@ -121,7 +121,7 @@ class ChainExecutor:
 
                 if execution_mode == 'use_project_settings':
                     # 프로젝트 설정 사용
-                    self.log(f"  ⚙️ 프로젝트 실행 설정 사용")
+                    self.log(f"  프로젝트 실행 설정 사용")
 
                     # 매크로 실행기 생성
                     self.current_executor = MacroExecutor(
@@ -163,7 +163,7 @@ class ChainExecutor:
                         self.current_repeat = repeat_idx + 1
                         current_execution += 1
 
-                        self.log(f"  🔄 반복 {repeat_idx + 1}/{repeat_count}")
+                        self.log(f"  반복 {repeat_idx + 1}/{repeat_count}")
                         self.update_progress(
                             current_execution,
                             total_executions,
@@ -196,12 +196,12 @@ class ChainExecutor:
                         finally:
                             self.current_executor = None
 
-                self.log(f"✅ '{project_name}' 완료")
+                self.log(f"[OK] '{project_name}' 완료")
 
             if not self.should_stop:
-                self.log("\n🎉 ===== 매크로 체인 실행 완료 =====")
+                self.log("\n===== 매크로 체인 실행 완료 =====")
             else:
-                self.log("\n⏹️ ===== 매크로 체인 중지됨 =====")
+                self.log("\n[STOP] ===== 매크로 체인 중지됨 =====")
 
         except Exception as e:
             self.report_error(f"체인 실행 중 오류 발생: {str(e)}")
@@ -212,17 +212,17 @@ class ChainExecutor:
     def pause(self):
         """일시정지"""
         self.is_paused = True
-        self.log("⏸️ 일시정지")
+        self.log("[PAUSE] 일시정지")
 
     def resume(self):
         """재개"""
         self.is_paused = False
-        self.log("▶️ 재개")
+        self.log("[PLAY] 재개")
 
     def stop(self):
         """중지"""
         self.should_stop = True
-        self.log("⏹️ 중지 요청")
+        self.log("[STOP] 중지 요청")
 
         # 현재 실행 중인 executor도 중지
         if self.current_executor:
