@@ -20,6 +20,18 @@ class ExcelManager:
         # 중복 체크용 배열 (엑셀 ID별로 붙여넣은 값들을 추적)
         self.pasted_values = {}  # {excel_id: set()}
     
+    @staticmethod
+    def _normalize_columns(raw_columns):
+        """칼럼명 정규화 - NaN, None, Unnamed 등을 '컬럼_N'으로 변환"""
+        processed = []
+        for i, col in enumerate(raw_columns):
+            col_str = str(col).strip()
+            if not col_str or col_str in ['nan', 'None'] or col_str.startswith('Unnamed'):
+                processed.append(f"컬럼_{i+1}")
+            else:
+                processed.append(col_str)
+        return processed
+
     def copy_excel_to_project(self, source_filepath):
         """엑셀 파일을 프로젝트 폴더로 복사"""
         try:
@@ -95,12 +107,13 @@ class ExcelManager:
                     df = df.iloc[first_valid_idx:].reset_index(drop=True)
                     print(f"   🧹 상위 공백 행 {first_valid_idx}개 제거됨")
 
-                # 첫 번째 행을 헤더로 설정
-                df.columns = df.iloc[0]
+                # 첫 번째 행을 헤더로 설정 (get_columns와 동일한 처리)
+                df.columns = self._normalize_columns(df.iloc[0].tolist())
                 df = df[1:].reset_index(drop=True)
                 print(f"   📋 헤더 설정 완료: {list(df.columns)}")
             else:
                 df = pd.read_excel(copied_filepath, sheet_name=sheet_name)
+                df.columns = self._normalize_columns(df.columns.tolist())
 
             print(f"   ✅ 전체 {len(df)}행, {len(df.columns)}컬럼 읽기 완료")
             print(f"   전체 컬럼: {list(df.columns)}")
@@ -242,13 +255,14 @@ class ExcelManager:
                     removed = original_count - len(df)
                     print(f"   🧹 상위 공백 행 {removed}개 제거됨")
 
-                # 첫 번째 행을 헤더로 설정
-                df.columns = df.iloc[0]
+                # 첫 번째 행을 헤더로 설정 (get_columns와 동일한 처리)
+                df.columns = self._normalize_columns(df.iloc[0].tolist())
                 df = df[1:].reset_index(drop=True)
                 print(f"   📋 헤더 설정 완료: {list(df.columns)}")
             else:
                 # 공백 행 제거가 필요 없으면 일반적으로 읽기
                 df = pd.read_excel(filepath, sheet_name=source['sheet_name'])
+                df.columns = self._normalize_columns(df.columns.tolist())
 
             # 2. 컬럼 필터링 (공백 행 제거 후 올바른 컬럼명 사용)
             if source['columns']:
@@ -334,15 +348,7 @@ class ExcelManager:
                 print(f"   🧹 상위 공백 행 {first_valid_idx}개 건너뜀")
 
             columns = df.iloc[first_valid_idx].tolist()
-
-            processed_columns = []
-            for i, col in enumerate(columns):
-                col_str = str(col).strip()
-
-                if not col_str or col_str in ['nan', 'None'] or col_str.startswith('Unnamed'):
-                    processed_columns.append(f"컬럼_{i+1}")
-                else:
-                    processed_columns.append(col_str)
+            processed_columns = ExcelManager._normalize_columns(columns)
 
             print(f"✅ 컬럼 목록 ({len(processed_columns)}개): {processed_columns}")
             return processed_columns
