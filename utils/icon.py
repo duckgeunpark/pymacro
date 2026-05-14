@@ -7,7 +7,7 @@ print("현재 폴더 파일 목록:")
 for f in os.listdir('.'):
     print(f"  - {f}")
     
-input_file = '9461e7c2-f72d-46ad-9878-e131cfa24800.png'
+input_file = 'Gemini_Generated_Image_cizun7cizun7cizu.png'
 if not os.path.exists(input_file):
     print(f"❌ '{input_file}' 파일이 현재 디렉토리에 없습니다.")
     exit(1)
@@ -16,8 +16,8 @@ if not os.path.exists(input_file):
 os.makedirs('resources', exist_ok=True)
 
 # 선택한 PNG 파일
-input_file = '9461e7c2-f72d-46ad-9878-e131cfa24800.png'  # 파일명
-output_file = 'resources/9461e7c2-f72d-46ad-9878-e131cfa24800.ico'
+input_file = 'Gemini_Generated_Image_cizun7cizun7cizu.png'  # 파일명
+output_file = 'resources/Gemini_Generated_Image_cizun7cizun7cizu.ico'
 
 try:
     # ICO 변환 (여러 크기 포함)

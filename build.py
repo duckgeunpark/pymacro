@@ -27,6 +27,8 @@ def build_exe():
             '--hidden-import=pandas',
             '--hidden-import=pynput',
             '--hidden-import=pyperclip',
+            '--hidden-import=customtkinter',
+            '--collect-all=customtkinter',
             'main.py'
     ]
     
